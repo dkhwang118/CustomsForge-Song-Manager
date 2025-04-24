@@ -393,7 +393,6 @@ namespace CustomsForgeSongManager.Workers
             if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
             {
                 // bWorker.Abort(); // don't use abort
-                this.Dispose();
                 Globals.Log(Resources.UserCancelledProcess);
                 Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
                 Globals.TsLabel_StatusMsg.Text = "";

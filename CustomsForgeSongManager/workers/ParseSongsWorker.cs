@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using CustomsForgeSongManager.UControls;
+using CustomsForgeSongManager.Properties;
 
 namespace CustomsForgeSongManager.Workers
 {
@@ -60,6 +61,11 @@ namespace CustomsForgeSongManager.Workers
         /// </summary>
         private SongManager _songManagerView;
 
+        /// <summary>
+        /// Stopwatch used to track the time taken to parse songs.
+        /// </summary>
+        private Stopwatch _counterStopwatch = null;
+
         public ParseSongsWorker(SongManager songManagerView)
         {
             // Set default params
@@ -69,6 +75,7 @@ namespace CustomsForgeSongManager.Workers
 
             // Hook the event handlers
             this.DoWork += parseSongs_DoWork;
+            this.RunWorkerCompleted += parseSongs_OnWorkComplete;
         }
 
 
@@ -97,6 +104,9 @@ namespace CustomsForgeSongManager.Workers
 
                 Globals.DebugLog("Parsing files ...");
 
+                _counterStopwatch = new Stopwatch();
+                _counterStopwatch.Restart();
+
                 // Initialize the threads for parsing songs
                 int coreCount = SysExtensions.GetCoreCount();
                 Thread[] workThreads = initializeParseSongThreads(coreCount);
@@ -108,6 +118,29 @@ namespace CustomsForgeSongManager.Workers
                     finalizeParsingSongsWork();
                 }
             }
+        }
+
+
+        private void parseSongs_OnWorkComplete(object sender, RunWorkerCompletedEventArgs e)
+        {
+            GenExtensions.InvokeIfRequired(_songManagerView, delegate { Globals.TsLabel_Cancel.Visible = false; });
+
+            if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
+            {
+                // bWorker.Abort(); // don't use abort
+                Globals.Log(Resources.UserCancelledProcess);
+                Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
+                Globals.WorkerFinished = Globals.Tristate.Cancelled;
+            }
+            else
+            {
+                //WorkerProgress(100);
+
+                Globals.Log(String.Format("Finished multithread parsing took: {0}", _counterStopwatch.Elapsed));
+                Globals.WorkerFinished = Globals.Tristate.True;
+            }
+
+            Globals.IsScanning = false;
         }
 
         /// <summary>

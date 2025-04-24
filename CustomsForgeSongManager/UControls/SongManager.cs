@@ -858,7 +858,15 @@ namespace CustomsForgeSongManager.UControls
         {
             bindingCompleted = false;
             dgvPainted = false;
+
+            // NOTE: Now that we're trying to multithread this, the Rescan() method called below 
+            // will exit before the full rescan is actually finished
             Rescan(fullRescan);
+
+            // NOTE continued: The above method can now exit before the rescan is complete,
+            // BUT that means the PopulateSongManager() method below can trigger ANOTHER rescan
+            // when it calls LoadSongCollectionFromFile(). These rescans run in parallel to eachother
+            // when on the SongManager tab and clicking the "Full Rescan" Rescan option.
             PopulateSongManager();
             UpdateToolStrip();
         }
@@ -944,15 +952,13 @@ namespace CustomsForgeSongManager.UControls
             multithreadCheck();
 
             // run new worker
+
+
+            // Run the parsing process
+            _controller.ParseSongs();
+
+            // Old code that ran AFTER the parsing process was completed.
             /*
-            using (Worker worker = new Worker())
-            {
-                worker.BackgroundScan(this, bWorker);
-
-                while (Globals.WorkerFinished == Globals.Tristate.False)
-                    Application.DoEvents();
-            }
-
             ToggleUIControls(true);
 
             if (Globals.WorkerFinished == Globals.Tristate.Cancelled)
@@ -961,9 +967,6 @@ namespace CustomsForgeSongManager.UControls
                 return;
             }
             */
-
-            // Run the parsing process
-            _controller.ParseSongs();
         }
 
         /// <summary>
@@ -973,10 +976,8 @@ namespace CustomsForgeSongManager.UControls
         public void PopulateLocalSongListMember()
         {
             songList = Globals.MasterCollection.ToList();
-            GenExtensions.InvokeIfRequired(this, delegate
-            {
-                LoadFilteredBindingList(songList);
-            });
+
+            ToggleUIControls(true);
         }
 
         /// <summary>
