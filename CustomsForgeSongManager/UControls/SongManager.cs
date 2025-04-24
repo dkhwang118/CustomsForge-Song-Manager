@@ -31,6 +31,7 @@ using System.Reflection;
 using Newtonsoft.Json.Linq;
 using RocksmithToolkitLib;
 using System.Globalization;
+using CustomsForgeSongManager.Controllers;
 
 // TODO: convert SongManager, Duplicates, SetlistManager to use a common bound FilterBindingList<SongData>() dataset.
 // TODO: use binding source filtering to show/hide data
@@ -55,8 +56,25 @@ namespace CustomsForgeSongManager.UControls
         private string lastSelectedSongPath = String.Empty;
         private int numberOfDLCPendingUpdate = 0;
         private int numberOfDisabledDLC = 0;
+
+        /// <summary>
+        /// Local list of the songs in the collection (Global.MasterCollection).
+        /// NOTE: Need to remove this variable; no reason to have two copies of the same data.
+        /// </summary>
         private List<SongData> songList = new List<SongData>(); // non-binding prevents filtering from being inherited
+
         private DgvStatus statusSongsMaster = new DgvStatus();
+
+        /// <summary>
+        /// The controller for the SongManager tab view.
+        /// </summary>
+        private SongManagerController _controller;
+
+        /// <summary>
+        /// The main window of the application.
+        /// For now (2025/04/17) this will have to be set manually until we can clean up the code.
+        /// </summary>
+        private frmMain _mainWindow = null;
 
         public SongManager()
         {
@@ -105,6 +123,13 @@ namespace CustomsForgeSongManager.UControls
             cmsOpenSongPage.Visible = GeneralExtension.IsInDesignMode ? true : false;
             toolStripSeparator11.Visible = GeneralExtension.IsInDesignMode ? true : false;
 
+            // Instantiate the controller for this view and give it this Control's reference
+            SongManagerController.Instance.SetSongManagerControl(this);
+            _controller = SongManagerController.Instance;
+
+
+
+
             PopulateSongManager(); // check SongData version first
 
             PopulateTagger();
@@ -124,7 +149,21 @@ namespace CustomsForgeSongManager.UControls
             tsmiDevUseOnly.Visible = GeneralExtension.IsInDesignMode ? true : false;
         }
 
-        public void DoWork(string workDescription, dynamic workerParm1 = null, dynamic workerParm2 = null, dynamic workerParm3 = null, dynamic workerParm4 = null)
+        /// <summary>
+        /// Sets the main window of the application.
+        /// </summary>
+        /// <param name="mainWindow">The main window.</param>
+        public void SetMainWindow(frmMain mainWindow)
+        {
+            // Set the main window of the application.
+            _mainWindow = mainWindow;
+
+            // Pass the reference to the controller too
+            _controller.SetMainFormControl(mainWindow);
+        }
+
+        public void DoWork(string workDescription, dynamic workerParm1 = null,
+            dynamic workerParm2 = null, dynamic workerParm3 = null, dynamic workerParm4 = null)
         {
             using (var gWorker = new GenericWorker())
             {
@@ -265,6 +304,10 @@ namespace CustomsForgeSongManager.UControls
             Globals.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
         }
 
+        /// <summary>
+        /// Method to gather the selected repair options and return them as a RepairOptions object.
+        /// </summary>
+        /// <returns>The RepairOptions object with the currently selected options.</returns>
         public RepairOptions SetRepairOptions()
         {
             var ro = new RepairOptions();
@@ -897,7 +940,11 @@ namespace CustomsForgeSongManager.UControls
                 tsmiModsMyCDLC.Checked = false;
             }
 
+            // check for multithreaded processing
+            multithreadCheck();
+
             // run new worker
+            /*
             using (Worker worker = new Worker())
             {
                 worker.BackgroundScan(this, bWorker);
@@ -913,10 +960,52 @@ namespace CustomsForgeSongManager.UControls
                 Globals.Log(Resources.UserCancelledProcess);
                 return;
             }
+            */
 
-            // BackgroundScan populates Globals.MasterCollection
+            // Run the parsing process
+            _controller.ParseSongs();
+        }
+
+        /// <summary>
+        /// This method is only here because of the usage of SongManager.songList
+        /// => Remove usage of this once we properly implement bindings for this view.
+        /// </summary>
+        public void PopulateLocalSongListMember()
+        {
             songList = Globals.MasterCollection.ToList();
-            SaveSongCollectionToFile();
+            GenExtensions.InvokeIfRequired(this, delegate
+            {
+                LoadFilteredBindingList(songList);
+            });
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        private void multithreadCheck()
+        {
+            // Get this system's core count
+            var coreCount = SysExtensions.GetCoreCount();
+            if (coreCount == 0)
+                coreCount = 1;
+
+            // If we have no songs in the global list, and we have a multicore processor, and the user hasn't set the threading option
+            if (coreCount > 1 && AppSettings.Instance.MultiThread == -1)
+            {
+                // Ask the user if they want to enable multithreaded processing.
+                var diaMsg = ".NET Framework reports that you have a (" + coreCount + ") core processor ...  " + Environment.NewLine +
+                                "Would you like to try running the CFSM song rescan using" + Environment.NewLine +
+                                "the new multicore support feature?" + Environment.NewLine + Environment.NewLine +
+                                "Rescan can be done using the old method if you answer 'No'" + Environment.NewLine +
+                                "Threading selection can be reset in 'Settings' tabmenu.";
+
+                if (DialogResult.Yes == BetterDialog2.ShowDialog(diaMsg, "Multithread Usage", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Hand.Handle), "ReadMe", 0, 150))
+                    AppSettings.Instance.MultiThread = 1;
+                else
+                    AppSettings.Instance.MultiThread = 0;
+
+                Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
+            }
         }
 
         private void ResetDetail()
@@ -969,10 +1058,10 @@ namespace CustomsForgeSongManager.UControls
         private void SelectAllNone()
         {
             TemporaryDisableDatabindEvent(() =>
-                {
-                    foreach (DataGridViewRow row in dgvSongsMaster.Rows)
-                        row.Cells["colSelect"].Value = !allSelected;
-                });
+            {
+                foreach (DataGridViewRow row in dgvSongsMaster.Rows)
+                    row.Cells["colSelect"].Value = !allSelected;
+            });
 
             allSelected = !allSelected;
             dgvSongsMaster.Refresh();
@@ -1245,20 +1334,20 @@ namespace CustomsForgeSongManager.UControls
             counterStopwatch.Restart();
 
             GenExtensions.InvokeIfRequired(dgvSongsMaster, delegate
+            {
+                foreach (DataGridViewRow row in dgvSongsMaster.Rows)
                 {
-                    foreach (DataGridViewRow row in dgvSongsMaster.Rows)
+                    if (bWorker.CancellationPending)
                     {
-                        if (bWorker.CancellationPending)
-                        {
-                            bWorker.Abort();
-                            Globals.Log("<WARNING> User aborted checking for updates on CF ...");
-                            break;
-                        }
-
-                        DataGridViewRow currentRow = (DataGridViewRow)row;
-                        CheckRowForUpdate(currentRow);
+                        bWorker.Abort();
+                        Globals.Log("<WARNING> User aborted checking for updates on CF ...");
+                        break;
                     }
-                });
+
+                    DataGridViewRow currentRow = (DataGridViewRow)row;
+                    CheckRowForUpdate(currentRow);
+                }
+            });
 
             counterStopwatch.Stop();
         }
@@ -1447,10 +1536,10 @@ namespace CustomsForgeSongManager.UControls
         {
             // TODO: add image for GetCharterName to Context Menu Strip item
             GenExtensions.InvokeIfRequired(dgvSongsMaster, delegate
-                {
-                    if (dgvSongsMaster.SelectedRows.Count > 0)
-                        UpdateCharter(dgvSongsMaster.SelectedRows[0]);
-                });
+            {
+                if (dgvSongsMaster.SelectedRows.Count > 0)
+                    UpdateCharter(dgvSongsMaster.SelectedRows[0]);
+            });
         }
 
         private void cmsOpenSongLocation_Click(object sender, EventArgs e)
@@ -1771,13 +1860,13 @@ namespace CustomsForgeSongManager.UControls
                             end = tmp;
                         }
                         TemporaryDisableDatabindEvent(() =>
+                        {
+                            for (int i = start; i < end; i++)
                             {
-                                for (int i = start; i < end; i++)
-                                {
-                                    var s = DgvExtensions.GetObjectFromRow<SongData>(dgvSongsMaster, i);
-                                    s.Selected = !s.Selected;
-                                }
-                            });
+                                var s = DgvExtensions.GetObjectFromRow<SongData>(dgvSongsMaster, i);
+                                s.Selected = !s.Selected;
+                            }
+                        });
                     }
                 }
             }
@@ -1854,10 +1943,10 @@ namespace CustomsForgeSongManager.UControls
 
             // makes checkbox mark appear correctly
             TemporaryDisableDatabindEvent(() =>
-                {
-                    grid.EndEdit();
-                    grid.Refresh();
-                });
+            {
+                grid.EndEdit();
+                grid.Refresh();
+            });
         }
 
         private void dgvSongsMaster_CellValueChanged(object sender, DataGridViewCellEventArgs e)
@@ -1960,12 +2049,12 @@ namespace CustomsForgeSongManager.UControls
             if (e.Modifiers == Keys.Control && e.KeyCode == Keys.A)
             {
                 TemporaryDisableDatabindEvent(() =>
+                {
+                    for (int i = 0; i < dgvSongsMaster.Rows.Count; i++)
                     {
-                        for (int i = 0; i < dgvSongsMaster.Rows.Count; i++)
-                        {
-                            DgvExtensions.GetObjectFromRow<SongData>(dgvSongsMaster, i).Selected = allSelected;
-                        }
-                    });
+                        DgvExtensions.GetObjectFromRow<SongData>(dgvSongsMaster, i).Selected = allSelected;
+                    }
+                });
 
                 allSelected = !allSelected;
             }
@@ -2067,10 +2156,10 @@ namespace CustomsForgeSongManager.UControls
         private void lnklblToggle_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             TemporaryDisableDatabindEvent(() =>
-                {
-                    foreach (DataGridViewRow row in dgvSongsMaster.Rows)
-                        row.Cells["colSelect"].Value = !Convert.ToBoolean(row.Cells["colSelect"].Value);
-                });
+            {
+                foreach (DataGridViewRow row in dgvSongsMaster.Rows)
+                    row.Cells["colSelect"].Value = !Convert.ToBoolean(row.Cells["colSelect"].Value);
+            });
 
             dgvSongsMaster.Refresh();
         }
@@ -2509,8 +2598,44 @@ namespace CustomsForgeSongManager.UControls
             AppSettings.Instance.RepairOptions.PreserveStats = tsmiRepairsPreserveStats.Checked;
         }
 
+        /// <summary>
+        /// Click event for the Run Selected Repair Options drop-down menu item.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void tsmiRepairsRun_Click(object sender, EventArgs e)
         {
+            // First - Validate the repair options selected by the user
+            // Get the list of repair options selected by the user
+            var items = tsmiRepairs.DropDownItems;
+
+            // Create a string to hold the selected repair options
+            var repairString = String.Empty;
+            foreach (var item in items.OfType<ToolStripEnhancedMenuItem>())
+            {
+                if (item.Checked)
+                    repairString += item.Name.Replace("tsmi", " ");
+            }
+            repairString = repairString.Replace("DLFolderProcess", "").Replace("DLFolderMonitor", "").Trim();
+
+            // If the user has not selected any repair options
+            if (String.IsNullOrEmpty(repairString))
+            {
+                var diaMsg = "Please select some repair options and try again." + Environment.NewLine;
+                BetterDialog2.ShowDialog(diaMsg, "Repair Options ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150);
+                return;
+            }
+            // If the user has Max Five Arrangements selected but no removal options were checked
+            else if (repairString.Contains("RepairsMaxFive") && !repairString.Contains("Remove"))
+            {
+                var diaMsg = "Max Five Arrangements was selected" + Environment.NewLine +
+                             "but no removal options were checked." + Environment.NewLine +
+                             "Please choose removal optons and try again." + Environment.NewLine;
+                BetterDialog2.ShowDialog(diaMsg, "Repair Options ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150);
+                return;
+            }
+
+            // Second - check if the user has valid options selected for the Downloads folder processes
             // confirmed method working on Mac
             if (tsmiDLFolderMonitor.Checked)
             {
@@ -2520,6 +2645,16 @@ namespace CustomsForgeSongManager.UControls
                 return;
             }
 
+            // This code will never be run due to code above
+            // But ensuring the destination folder is set is good
+            /*
+            if (tsmiDLFolderMonitor.Checked && Directory.Exists(AppSettings.Instance.DLMonitorDesinationFolder))
+                FileTools.SetDLDestinationFolder();
+            */
+
+            // If we're processing the downloads folder and the user fails to set the folder.
+            // NOTE: FileTools.ValidateDownloadsDirs() always returns true, but the call itself is necessary 
+            // to set the folder if there wasn't one set already
             if (tsmiDLFolderProcess.Checked && !FileTools.ValidateDownloadsDirs())
             {
                 var diaMsg = "Please select a valid downloads folder and try again." + Environment.NewLine;
@@ -2527,19 +2662,33 @@ namespace CustomsForgeSongManager.UControls
                 return;
             }
 
-            if (tsmiDLFolderMonitor.Checked && Directory.Exists(AppSettings.Instance.DLMonitorDesinationFolder))
-                FileTools.SetDLDestinationFolder();
 
+            // Second - Validate the CFSM folders
+            try
+            {
+                FileTools.VerifyCfsmFolders();
+            }
+            catch (Exception e0)
+            {
+                var diaMsg = "The Customs Forge Song Manager managed folders could not be verified!" + Environment.NewLine;
+                BetterDialog2.ShowDialog(diaMsg, "Repair Options ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150);
+                return;
+            }
+
+
+            // Third - Validate the selection of songs
+            // Get the list of SongData objects to be repaired
             var selection = DgvExtensions.GetObjectsFromRows<SongData>(dgvSongsMaster);
+
+            // If the user has not selected any songs AND the Process Downloads Folder option is not checked
             if (!selection.Any() && !tsmiDLFolderProcess.Checked)
             {
                 var diaMsg = "Please select some CDLC to repair using the 'Select' column." + Environment.NewLine;
                 BetterDialog2.ShowDialog(diaMsg, "Repair Options ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150);
                 return;
             }
-
             // CRITICAL DO NOT repair tagged CDLC - artifact data will be lost forever
-            if (selection.Any(sd => sd.Tagged == SongTaggerStatus.True))
+            else if (selection.Any(sd => sd.Tagged == SongTaggerStatus.True))
             {
                 var diaMsg = "Tagged CDLC may not be repaired ..." + Environment.NewLine +
                              "Please untag the CLDC and then repair it." + Environment.NewLine;
@@ -2547,48 +2696,49 @@ namespace CustomsForgeSongManager.UControls
                 return;
             }
 
-            var items = tsmiRepairs.DropDownItems;
-            var repairString = String.Empty;
-
-            foreach (var item in items.OfType<ToolStripEnhancedMenuItem>())
-            {
-                if (item.Checked)
-                    repairString += item.Name.Replace("tsmi", " ");
-            }
-
-            repairString = repairString.Replace("DLFolderProcess", "").Replace("DLFolderMonitor", "").Trim();
-            if (String.IsNullOrEmpty(repairString))
-            {
-                var diaMsg = "Please select some repair options and try again." + Environment.NewLine;
-                BetterDialog2.ShowDialog(diaMsg, "Repair Options ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150);
-                return;
-            }
-
-            // RepairsMaxFive Remove
-            if (repairString.Contains("RepairsMaxFive") && !repairString.Contains("Remove"))
-            {
-                var diaMsg = "Max Five Arrangements was selected" + Environment.NewLine +
-                             "but no removal options were checked." + Environment.NewLine +
-                             "Please choose removal optons and try again." + Environment.NewLine;
-                BetterDialog2.ShowDialog(diaMsg, "Repair Options ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150);
-                return;
-            }
-
-            // set minimum default repair option and preserve stats
+            // Currently, we always repair the Mastery Bug, so...
+            // If the Mastery Bug Repair option was not selected
             if (!tsmiRepairsMastery.Checked)
             {
+                // set minimum default repair option and preserve stats
                 tsmiRepairsMastery.Checked = true;
                 tsmiRepairsPreserveStats.Checked = true;
                 Globals.Log(" - User did not select 'Repairs' option 'Mastery 100% Bug' ...");
                 Globals.Log(" - By default, CFSM will fix the bug and preserve the user stats ...");
             }
 
+            // We're done with retrieving the necessary values from the drop down => Hide the drop down menu
             tsmiRepairs.HideDropDown();
-            DoWork(Constants.GWORKER_REPAIR, selection, SetRepairOptions());
+
+            // Get the repair options selected by the user
+            var repairOptions = SetRepairOptions();
+
+            // Fourth - Do the work
+
+            // Current way of "doing work"
+            /*DoWork(Constants.GWORKER_REPAIR, selection, SetRepairOptions());
+
+            using (var gWorker = new GenericWorker())
+            {
+                gWorker.WorkDescription = workDescription;
+                gWorker.WorkParm1 = workerParm1;
+                gWorker.WorkParm2 = workerParm2;
+                gWorker.WorkParm3 = workerParm3;
+                gWorker.WorkParm4 = workerParm4;
+                gWorker.BackgroundProcess(this);
+                while (Globals.WorkerFinished == Globals.Tristate.False)
+                    Application.DoEvents();
+            }
+            */
+
+            // New way of doing work for Repairing
+            _controller.RepairSongs(selection, repairOptions);
+
+
             Globals.ReloadArrangements = true;
             Globals.ReloadSetlistManager = true;
             UpdateToolStrip();
-            this.Refresh();
+            //this.Refresh();
         }
 
         private void tsmiRescanFull_Click(object sender, EventArgs e)

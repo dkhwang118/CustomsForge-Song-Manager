@@ -12,6 +12,7 @@ using System;
 using RocksmithToolkitLib.XmlRepository;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 
 namespace CustomsForgeSongManager.DataObjects
@@ -177,6 +178,9 @@ namespace CustomsForgeSongManager.DataObjects
             set { _arrangementAnalyzer = value; }
         }
 
+        /// <summary>
+        /// The master list collection of songs.
+        /// </summary>
         public static BindingList<SongData> MasterCollection
         {
             get { return _masterCollection ?? (_masterCollection = new BindingList<SongData>()); }
@@ -211,16 +215,39 @@ namespace CustomsForgeSongManager.DataObjects
         public static Tristate WorkerFinished { get; set; }
         // True = 0, False = 1, Cancelled = 2
 
-        public static void Log(string message)
+
+        /// <summary>
+        /// Log a message to the log window and the log file with a Thread ID.
+        /// </summary>
+        /// <param name="threadID">The Thread ID.</param>
+        /// <param name="message">The message.</param>
+        public static void Log(int threadID, string message)
         {
             try
             {
-                MyLog.Write(message);
+                if (threadID > -1)
+                {
+                    string msg = string.Format("[Thread:{0}] {1}", threadID, message);
+                    MyLog.Write(msg);
+                }
+                else
+                {
+                    MyLog.Write(message);
+                }
             }
             catch
             {
                 // just ignore it
             }
+        }
+
+        /// <summary>
+        /// Log a message to the log window and the log file.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        public static void Log(string message)
+        {
+            Log(-1, message);
         }
 
         public static void DebugLog(string message)

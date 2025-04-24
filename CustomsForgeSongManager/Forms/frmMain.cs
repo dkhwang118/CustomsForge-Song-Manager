@@ -232,6 +232,10 @@ namespace CustomsForgeSongManager.Forms
             {
                 this.tpSongManager.Controls.Clear();
                 this.tpSongManager.Controls.Add(Globals.SongManager);
+
+                // Pass the main form reference so that the Song Manager can send it updates.
+                Globals.SongManager.SetMainWindow(this);
+
                 Globals.SongManager.PlaySongFunction = playFunction;
                 Globals.SongManager.Dock = DockStyle.Fill;
                 Globals.SongManager.Location = UCLocation;
@@ -804,58 +808,58 @@ namespace CustomsForgeSongManager.Forms
             }
 
             DoSomethingWithGrid((dataGrid, selection, colSel, ignoreColumns) =>
+            {
+                try
                 {
-                    try
+                    DataGridView dgvSelection = new DataGridView();
+
+                    // legacy code method produces undesirable results
+                    //foreach (DataGridViewColumn col in dataGrid.Columns)
+                    //        dgvSelection.Columns.Add((DataGridViewColumn)col.Clone());
+
+                    //dgvSelection.Rows.Add(selection.Count() - 1);
+
+                    //foreach (DataGridViewRow row in selection)
+                    //    foreach (DataGridViewColumn col in dataGrid.Columns)
+                    //                        dgvSelection.Rows[row.Index].Cells[col.Index].Value = row.Cells[col.Index].Value == null ? DBNull.Value : row.Cells[col.Index].Value;
+
+                    var orderedCols = dataGrid.Columns.Cast<DataGridViewColumn>()
+                        .Where(c => !ignoreColumns.Contains(c.Index))
+                        .OrderBy(x => x.DisplayIndex).ToList();
+
+                    foreach (DataGridViewColumn col in orderedCols)
+                        dgvSelection.Columns.Add((DataGridViewColumn)col.Clone());
+
+                    dgvSelection.Rows.Add(selection.Count() - 1);
+
+                    var rowNdx = 0;
+                    foreach (DataGridViewRow row in selection.Where(x => x.Visible))
                     {
-                        DataGridView dgvSelection = new DataGridView();
-
-                        // legacy code method produces undesirable results
-                        //foreach (DataGridViewColumn col in dataGrid.Columns)
-                        //        dgvSelection.Columns.Add((DataGridViewColumn)col.Clone());
-
-                        //dgvSelection.Rows.Add(selection.Count() - 1);
-
-                        //foreach (DataGridViewRow row in selection)
-                        //    foreach (DataGridViewColumn col in dataGrid.Columns)
-                        //                        dgvSelection.Rows[row.Index].Cells[col.Index].Value = row.Cells[col.Index].Value == null ? DBNull.Value : row.Cells[col.Index].Value;
-
-                        var orderedCols = dataGrid.Columns.Cast<DataGridViewColumn>()
-                            .Where(c => !ignoreColumns.Contains(c.Index))
-                            .OrderBy(x => x.DisplayIndex).ToList();
-
+                        var colNdx = 0;
                         foreach (DataGridViewColumn col in orderedCols)
-                            dgvSelection.Columns.Add((DataGridViewColumn)col.Clone());
-
-                        dgvSelection.Rows.Add(selection.Count() - 1);
-
-                        var rowNdx = 0;
-                        foreach (DataGridViewRow row in selection.Where(x => x.Visible))
                         {
-                            var colNdx = 0;
-                            foreach (DataGridViewColumn col in orderedCols)
-                            {
-                                dgvSelection.Rows[rowNdx].Cells[colNdx].Value = row.Cells[col.Index].Value == null ? DBNull.Value : row.Cells[col.Index].Value;
-                                colNdx++;
-                            }
-                            rowNdx++;
+                            dgvSelection.Rows[rowNdx].Cells[colNdx].Value = row.Cells[col.Index].Value == null ? DBNull.Value : row.Cells[col.Index].Value;
+                            colNdx++;
                         }
-
-                        DataTable dT = DgvConversion.DataGridViewToDataTable(dgvSelection, true);
-                        dT.TableName = "item"; // row node name
-                        DataSet dS = new DataSet();
-                        dS.DataSetName = Globals.DgvCurrent.Name; // root node name
-                        dS.Tables.Add(dT);
-                        using (StreamWriter fs = new StreamWriter(path))
-                            dS.WriteXml(fs);
-
-                        Globals.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
-                        GenExtensions.PromptOpen(Path.GetDirectoryName(path), Globals.DgvCurrent.Name + " data saved ...");
+                        rowNdx++;
                     }
-                    catch (IOException ex)
-                    {
-                        Globals.Log("<Error>: " + ex.Message);
-                    }
-                });
+
+                    DataTable dT = DgvConversion.DataGridViewToDataTable(dgvSelection, true);
+                    dT.TableName = "item"; // row node name
+                    DataSet dS = new DataSet();
+                    dS.DataSetName = Globals.DgvCurrent.Name; // root node name
+                    dS.Tables.Add(dT);
+                    using (StreamWriter fs = new StreamWriter(path))
+                        dS.WriteXml(fs);
+
+                    Globals.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
+                    GenExtensions.PromptOpen(Path.GetDirectoryName(path), Globals.DgvCurrent.Name + " data saved ...");
+                }
+                catch (IOException ex)
+                {
+                    Globals.Log("<Error>: " + ex.Message);
+                }
+            });
         }
 
         public void DGV2JSON()
@@ -1047,7 +1051,57 @@ namespace CustomsForgeSongManager.Forms
             tsAudioPlayer.AutoSize = false; // prevent movement
         }
 
+        private void invokeIfRequired(Action action)
+        {
+            if (InvokeRequired)
+                Invoke(new Action(() => action()));
+            else
+                action();
+        }
 
+        /// <summary>
+        /// Sets the ToolStrip's Main Message
+        /// </summary>
+        /// <param name="msg">The message to set.</param>
+        public void SetToolStripMainMessage(String msg)
+        {
+            invokeIfRequired(() =>
+            {
+                if (tsLabel_MainMsg != null)
+                {
+                    tsLabel_MainMsg.Text = msg;
+                    tsLabel_MainMsg.Visible = true;
+                }
+            });
+        }
+
+        /// <summary>
+        /// Sets the ToolStrip's Status Message
+        /// </summary>
+        /// <param name="msg">The message to set.</param>
+        public void SetToolStripStatusMessage(String msg)
+        {
+            invokeIfRequired(() =>
+            {
+                if (tsLabel_StatusMsg != null)
+                {
+                    tsLabel_StatusMsg.Text = msg;
+                    tsLabel_StatusMsg.Visible = true;
+                }
+            });
+        }
+
+        /// <summary>
+        /// Sets the ToolStrip's Main Progress Bar's Value.
+        /// </summary>
+        /// <param name="value">The value to set.</param>
+        public void SetToolStripMainProgressBarValue(int value)
+        {
+            invokeIfRequired(() =>
+            {
+                tsProgressBar_Main.Value = value;
+            });
+        }
     }
 }
 

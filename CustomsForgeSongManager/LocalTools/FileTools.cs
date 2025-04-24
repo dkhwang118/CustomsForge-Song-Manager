@@ -12,6 +12,7 @@ using CustomsForgeSongManager.Forms;
 using DataGridViewTools;
 using CustomsForgeSongManager.UControls;
 using RocksmithToolkitLib.PSARC;
+using System.Xml;
 
 namespace CustomsForgeSongManager.LocalTools
 {
@@ -92,7 +93,7 @@ namespace CustomsForgeSongManager.LocalTools
                              "order to be moved or deleted ..." + Environment.NewLine + Environment.NewLine +
                              "NOTE: if the game runs fine with your current song set and the Duplicates tab doesn't show any entries " +
                              Environment.NewLine +
-                             "go through the song list and check if you have multiple versions of the same song that are marked with same PackageVersion" 
+                             "go through the song list and check if you have multiple versions of the same song that are marked with same PackageVersion"
                              + Environment.NewLine + "and change those! (Right click->Edit Song Information)";
 
                 BetterDialog2.ShowDialog(diaMsg, "Organize Songs ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150);
@@ -580,6 +581,10 @@ namespace CustomsForgeSongManager.LocalTools
             }
         }
 
+        /// <summary>
+        /// Method that checks whether the user has any monitored folders set, and if not, asks the user to set them with a form.
+        /// </summary>
+        /// <returns>Always true.</returns>
         public static bool ValidateDownloadsDirs()
         {
             var dlDirectories = AppSettings.Instance.MonitoredFolders;
@@ -589,7 +594,7 @@ namespace CustomsForgeSongManager.LocalTools
                 frmMonitoredFolders frmMonitoredFolders = new frmMonitoredFolders();
                 frmMonitoredFolders.ShowDialog();
             }
-            
+
             return true;
         }
 
@@ -646,6 +651,8 @@ namespace CustomsForgeSongManager.LocalTools
             }
             catch (Exception ex)
             {
+                // We'll let this slide for now... but we should never just throw an exception
+                // that would "force app to stop here" as this is not a good practice and looks like a random crash to the user. 
                 Globals.Log("<ERROR> Could not verify CFSM work folders ...");
                 Globals.Log(ex.Message);
                 throw new Exception(); // force app to stop here
@@ -659,6 +666,143 @@ namespace CustomsForgeSongManager.LocalTools
             //Globals.DgvCurrent = new SongManager().dgvSongsMaster as DataGridView;
             //if (!File.Exists(Constants.GridSettingsPath))
             //    SerialExtensions.SaveToFile(Constants.GridSettingsPath, RAExtensions.ManagerGridSettings.ColumnOrder);
+        }
+
+        /// <summary>
+        /// Get a list of all songs in a folder.
+        /// </summary>
+        /// <param name="dirPath">The full directory path.</param>
+        /// <returns>The list of full paths for the songs in the given directory.</returns>
+        public static List<string> GetSongListForAFolder(string dirPath)
+        {
+            var songListInFolder = Directory.EnumerateFiles(dirPath, "*.psarc", SearchOption.TopDirectoryOnly)
+                .Where(fi => !fi.ToLower().Contains(Constants.RS1COMP) && // ignore compatibility packs
+                             !fi.ToLower().Contains(Constants.SONGPACK) && // ignore songpacks
+                             !fi.ToLower().Contains(Constants.ABVSONGPACK) && // ignore _sp_
+                             !fi.ToLower().Contains("inlay")).ToList(); // ignore inlays
+
+            Globals.Log("Number of song .psarcs found in " + dirPath + " folder: " + songListInFolder.Count().ToString());
+
+            return songListInFolder;
+        }
+
+        /// <summary>
+        /// Gets a list of all songs file paths given the user's specifications.
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <param name="includeRS1Pack"></param>
+        /// <param name="includeRS2014BaseSongs"></param>
+        /// <param name="includeCustomPacks"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static List<string> FilesList(string filePath, bool includeRS1Pack = false, bool includeRS2014BaseSongs = false, bool includeCustomPacks = false)
+        {
+            if (String.IsNullOrEmpty(filePath))
+                throw new Exception("<ERROR> No path provided for file scanning");
+
+            if (!Directory.Exists(filePath))
+                Directory.CreateDirectory(filePath);
+
+            var files = Directory.EnumerateFiles(filePath, "*" + Constants.EnabledExtension, SearchOption.AllDirectories).ToList();
+            files.AddRange(Directory.EnumerateFiles(filePath, "*" + Constants.DisabledExtension, SearchOption.AllDirectories).ToList());
+
+            // removes enabled/disabled RS1Packs
+            if (!includeRS1Pack)
+                files = files.Where(file => !file.ToLower().Contains(Constants.RS1COMP)).ToList();
+
+            // removes enabled/disabled CustomPacks
+            if (!includeCustomPacks)
+                files = files.Where(file => !file.ToLower().Contains(Constants.SONGPACK) && !file.ToLower().Contains(Constants.ABVSONGPACK)).ToList();
+
+            if (includeRS2014BaseSongs)
+            {
+                var baseSongs = Directory.EnumerateFiles(AppSettings.Instance.RSInstalledDir, Constants.BASESONGS, SearchOption.TopDirectoryOnly).ToList();
+                baseSongs.AddRange(Directory.EnumerateFiles(AppSettings.Instance.RSInstalledDir, Constants.BASESONGSDISABLED, SearchOption.TopDirectoryOnly).ToList());
+
+                // Check for duplicate enable/disabled files and remove disabled file
+                //if (baseSongs.Count > 1)
+                //{
+                //    Globals.Log("<WARNING> Invalid songs*.psarc file count ...");
+
+                //    for (int i = 1; i < baseSongs.Count; i++)
+                //    {
+                //        var baseSong = Path.Combine(AppSettings.Instance.RSInstalledDir, baseSongs[i]);
+                //        File.Delete(baseSong);
+                //        baseSongs.RemoveAt(i);
+                //        Globals.Log("- Deleted file: " + baseSong + " ...");
+                //    }
+                //}
+
+                files.AddRange(baseSongs);
+            }
+
+            // Check for duplicate enable/disabled files in same directory and move the disabled file to CFSM/Duplicates folder
+            var dups = files.Select(fullPath => new { Name = Path.Combine(Path.GetDirectoryName(fullPath), Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(fullPath))), FullPath = fullPath })
+                .GroupBy(file => file.Name).Where(fileGroup => fileGroup.Count() > 1).ToList();
+
+            foreach (var dup in dups)
+            {
+                foreach (var item in dup)
+                {
+                    var dupPath = item.FullPath;
+                    // if (dupPath.Contains(Constants.DisabledExtension)) // does not detect songs.disabled.psarc
+                    if (dupPath.Contains(".disabled."))
+                    {
+                        // File.Delete(dupPath); // a bit too harsh
+                        var destFilePath = Path.Combine(Constants.DuplicatesFolder, Path.GetFileName(dupPath));
+                        if (!GenExtensions.MoveFile(dupPath, destFilePath, true, true))
+                            continue;
+
+                        files.Remove(dupPath);
+                        Globals.Log("- Moved disabled duplicate file: " + dupPath);
+                        Globals.Log("- To: " + destFilePath);
+                    }
+                }
+            }
+
+            return files;
+        }
+
+        /// <summary>
+        /// Saves the current song collection (Globals.MasterCollection) to the SongsInfo.xml file.
+        /// </summary>
+        public static void SaveSongCollectionToFile()
+        {
+            var dom = Globals.MasterCollection.XmlSerializeToDom();
+            XmlElement versionNode = dom.CreateElement("SongDataList");
+            versionNode.SetAttribute("version", SongData.SongDataVersion);
+            versionNode.SetAttribute("AppVersion", Constants.CustomVersion());
+            dom.DocumentElement.AppendChild(versionNode);
+
+            foreach (XmlElement songData in dom.GetElementsByTagName("ArrayOfSongData")[0].ChildNodes)
+            {
+                // reduce songInfo.xml file size by removing extraneous/null/empty elements
+                var arrangementsNode = songData.GetElementsByTagName("Arrangements")[0];
+                if (arrangementsNode != null)
+                {
+                    var arrNodes = arrangementsNode.ChildNodes.OfType<XmlNode>().ToList();
+
+                    foreach (var arrNode in arrNodes)
+                    {
+                        var isVocals = arrNode.InnerXml.Contains("<Name>Vocals</Name>");
+                        var innerNodes = arrNode.ChildNodes.OfType<XmlNode>().ToList();
+
+                        foreach (var n in innerNodes)
+                        {
+                            // remove analyzer data from vocals
+                            if (n.InnerText == "0" && isVocals)
+                                arrNode.RemoveChild(n);
+
+                            // remove null/empty data
+                            if (String.IsNullOrEmpty(n.InnerText))
+                                arrNode.RemoveChild(n);
+                        }
+                    }
+                }
+            }
+
+            dom.Save(Constants.SongsInfoPath);
+            Globals.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
         }
 
     }

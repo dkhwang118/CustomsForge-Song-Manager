@@ -171,7 +171,7 @@ namespace GenTools
 
             if (ndxDash > 6)
                 version = s.Substring(0, ndxDash);
-            
+
             return version;
         }
 
@@ -636,6 +636,11 @@ namespace GenTools
                     select date.AddDays(i * -1)).First();
         }
 
+        /// <summary>
+        /// Creates a directory at the given path.
+        /// </summary>
+        /// <param name="dirPath">The directory to be created.</param>
+        /// <returns>True if the directory was successfully created.</returns>
         public static bool MakeDir(string dirPath)
         {
             try
@@ -665,7 +670,7 @@ namespace GenTools
 
             // remove forward slashes from a directory name, e.g. AC/DC becomes ACDC
             string invalidRegStr = String.Format(@"([{0}]*\.+$)|([{0}/]+)", Regex.Escape(invalidChars));
-            
+
             return Regex.Replace(dirName, invalidRegStr, replaceWith);
         }
 
@@ -680,7 +685,7 @@ namespace GenTools
             return Regex.Replace(fileName, invalidRegStr, replaceWith);
         }
 
-        public static bool MoveFile(string fileFrom, string fileTo, bool overWrite, bool verbose = true, bool skipDuplicates=false)
+        public static bool MoveFile(string fileFrom, string fileTo, bool overWrite, bool verbose = true, bool skipDuplicates = false)
         {
             if (!File.Exists(fileFrom))
                 return false;
@@ -751,7 +756,7 @@ namespace GenTools
             if (File.Exists(destPath))
             {
                 if (BetterDialog.ShowDialog("File already exists:" + Environment.NewLine +
-                    SplitString(destPath, 50, false) + Environment.NewLine + Environment.NewLine + 
+                    SplitString(destPath, 50, false) + Environment.NewLine + Environment.NewLine +
                     "Overwrite the existing file?", @"Warning: Overwrite File Message",
                     MessageBoxButtons.YesNo, Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning ...", 150, 150)
                     == DialogResult.No)
@@ -885,9 +890,9 @@ namespace GenTools
             if (runInBackground)
             {
                 process.OutputDataReceived += new DataReceivedEventHandler((s, e) =>
-                    {
-                        output.Add(e.Data);
-                    });
+                {
+                    output.Add(e.Data);
+                });
             }
 
             process.Start();

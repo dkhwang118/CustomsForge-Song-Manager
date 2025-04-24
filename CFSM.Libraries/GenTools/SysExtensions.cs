@@ -501,16 +501,16 @@ namespace GenTools
                                         }
                                         break;
 
-                                    //switch (productType)
-                                    //{
-                                    //    case 1:
-                                    //        name = "Windows Vista";
-                                    //        break;
-                                    //    case 3:
-                                    //        name = "Windows Server 2008";
-                                    //        break;
-                                    //}
-                                    //break;
+                                        //switch (productType)
+                                        //{
+                                        //    case 1:
+                                        //        name = "Windows Vista";
+                                        //        break;
+                                        //    case 3:
+                                        //        name = "Windows Server 2008";
+                                        //        break;
+                                        //}
+                                        //break;
                                 }
                                 break;
                             }
@@ -826,6 +826,10 @@ namespace GenTools
                     coreCount += int.Parse(mo["NumberOfCores"].ToString());
             }
 
+            // Default to 1 if no cores found
+            if (coreCount < 1)
+                coreCount = 1;
+
             return coreCount;
         }
 
@@ -878,7 +882,7 @@ namespace GenTools
         }
     }
 
-        #endregion
+    #endregion
 
     #region Web Browser Support Classes
 
