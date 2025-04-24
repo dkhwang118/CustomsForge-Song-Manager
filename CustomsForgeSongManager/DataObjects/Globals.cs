@@ -187,6 +187,9 @@ namespace CustomsForgeSongManager.DataObjects
             set { _masterCollection = value; }
         }
 
+        /// <summary>
+        /// The song manager control
+        /// </summary>
         public static SongManager SongManager
         {
             get { return _songManager ?? (_songManager = new SongManager()); }

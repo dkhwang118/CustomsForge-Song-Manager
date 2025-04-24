@@ -789,6 +789,10 @@ namespace CustomsForgeSongManager.Forms
         public TabControl tcMain;
         private TabPage tpProfileSongLists;
         public TabPage tpSettings;
+        /// <summary>
+        /// The tab page for the song manager.
+        /// This is the control that contains the song manager UI
+        /// </summary>
         public TabPage tpSongManager;
         private ToolStripButton tsBtnUpdate;
         private ToolStripSeparator toolStripSeparator3;

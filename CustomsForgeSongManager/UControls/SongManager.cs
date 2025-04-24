@@ -38,6 +38,9 @@ using CustomsForgeSongManager.Controllers;
 
 namespace CustomsForgeSongManager.UControls
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public partial class SongManager : UserControl, IDataGridViewHolder, INotifyTabChanged
     {
         public Delegate PlaySongFunction;

@@ -146,8 +146,10 @@ namespace CustomsForgeSongManager.Forms
             if (Constants.DebugMode)
                 strFormatVersion = "{0} (v{1} - {2} DEBUG)";
 
+            // Set the application title
             Constants.AppTitle = String.Format(strFormatVersion, Constants.ApplicationName, Constants.CustomVersion(), AppSettings.Instance.MacMode ? "MAC" : "PC");
             this.Text = Constants.AppTitle;
+
             // bring CFSM to the front on startup
             this.BringToFront();
             this.WindowState = AppSettings.Instance.FullScreen ? FormWindowState.Maximized : FormWindowState.Normal;
@@ -225,6 +227,12 @@ namespace CustomsForgeSongManager.Forms
             //  throw new Exception("Improper constructor used");
         }
 
+        /// <summary>
+        /// Method to load and/or display the Song Manager tab.
+        /// NOTE: Any initialization processing required for when any tab is first called should be in it's constructor.
+        /// NOTE: The only thing that should be here is what's necessary to display the tab.
+        /// NOTE: Displaying =/= Updating the tab's content; Updating the tab's content should be done by the tab/control itself.
+        /// </summary>
         private void LoadSongManager()
         {
             // don't clear the tab after the initial load
@@ -361,7 +369,12 @@ namespace CustomsForgeSongManager.Forms
                     break;
             }
         }
-
+        
+        /// <summary>
+        /// Event handler for when the tab selection changes in the main tab control.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         public void tcMain_SelectedIndexChanged(object sender, EventArgs e)
         {
             var debugMe = sender;
@@ -379,6 +392,7 @@ namespace CustomsForgeSongManager.Forms
             else
                 tsAudioPlayer.Visible = true;
 
+            // If we have a current tab control, call TabLeave() on it.
             if (currentControl != null && currentControl is INotifyTabChanged)
                 (currentControl as INotifyTabChanged).TabLeave();
 
