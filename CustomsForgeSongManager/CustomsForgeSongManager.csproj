@@ -188,6 +188,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controllers\SongManagerController.cs" />
     <Compile Include="DataObjects\ArrangementData.cs" />
     <Compile Include="DataObjects\IgnitionSong.cs" />
     <Compile Include="DataObjects\OfficialSong.cs" />
@@ -213,6 +214,7 @@
     <Compile Include="LocalTools\FileTools.cs" />
     <Compile Include="LocalTools\DynamicDifficulty.cs" />
     <Compile Include="LocalTools\GenericWorker.cs" />
+    <Compile Include="LocalTools\LoadBalancingThread.cs" />
     <Compile Include="LocalTools\LocalExtensions.cs" />
     <Compile Include="LocalTools\AbortableBackgroundWorker.cs">
       <SubType>Component</SubType>
@@ -272,6 +274,8 @@
     <Compile Include="LocalTools\Ignition.cs" />
     <Compile Include="LocalTools\PsarcBrowser.cs" />
     <Compile Include="LocalTools\TaggerTools.cs" />
+    <Compile Include="LocalTools\ThreadSafeDLCPackageCreator.cs" />
+    <Compile Include="LocalTools\ThreadSafePsarcPackager.cs" />
     <Compile Include="LocalTools\VersionInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -424,6 +428,15 @@
       <DependentUpon>ThemePreview.cs</DependentUpon>
     </Compile>
     <Compile Include="LocalTools\Worker.cs" />
+    <Compile Include="Workers\ControllableWorker.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Workers\ParseSongsWorker.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Workers\RepairSongsWorker.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <EmbeddedResource Include="Forms\frmLocalProfiles.resx">
       <DependentUpon>frmLocalProfiles.cs</DependentUpon>
       <SubType>Designer</SubType>
