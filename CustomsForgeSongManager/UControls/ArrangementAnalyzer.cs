@@ -25,6 +25,11 @@ using RocksmithToolkitLib;
 
 namespace CustomsForgeSongManager.UControls
 {
+    /// <summary>
+    /// This is the viewmodel for the ArrangementAnalyzer window that appears when the tab is selected.
+    /// View ranges from the "Rescan" and "Help" buttons in the top left
+    /// to the "Include Vocals" checkbox of the "Search" options in the bottom right.
+    /// </summary>
     public partial class ArrangementAnalyzer : UserControl, IDataGridViewHolder, INotifyTabChanged
     {
         private bool allSelected = false;

@@ -39,7 +39,9 @@ using CustomsForgeSongManager.Controllers;
 namespace CustomsForgeSongManager.UControls
 {
     /// <summary>
-    /// 
+    /// This is the view model for the SongManager tab.
+    /// This view has controls from the "Rescan" button in the top left
+    /// to the "Protect Official DLC" search options checkbox in the bottom right.
     /// </summary>
     public partial class SongManager : UserControl, IDataGridViewHolder, INotifyTabChanged
     {
@@ -342,6 +344,9 @@ namespace CustomsForgeSongManager.UControls
             ro.SkipDupes = tsmiSkipDupes.Checked;
 
             AppSettings.Instance.RepairOptions = ro;
+
+            Model.Instance.SetRepairOptions(ro);
+
             return ro;
         }
 

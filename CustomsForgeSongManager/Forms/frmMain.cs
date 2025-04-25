@@ -372,6 +372,8 @@ namespace CustomsForgeSongManager.Forms
         
         /// <summary>
         /// Event handler for when the tab selection changes in the main tab control.
+        /// This is what kick's off a change between the tabs 
+        /// (i.e. arguably the biggest change the application's view can make).
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -405,6 +407,7 @@ namespace CustomsForgeSongManager.Forms
                     break;
                 case "Arrangement Analyzer":
                     // don't reload grid if already loaded
+                    // if the 
                     if (!tpArrangements.Controls.Contains(Globals.ArrangementAnalyzer))
                     {
                         this.tpArrangements.Controls.Clear();

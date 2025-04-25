@@ -776,6 +776,10 @@ namespace CustomsForgeSongManager.Forms
         private ToolStripPanel LeftToolStripPanel;
         private ToolStripContentPanel ContentPanel;
         private ToolStripSeparator toolStripSeparator6;
+        /// <summary>
+        /// The toolstrip holding the audio player controls.
+        /// A child of the frmMain form.
+        /// </summary>
         private ToolStrip tsAudioPlayer;
         private ToolStripButton tsbPlay;
         private ToolStripButton tsbStop;
@@ -783,6 +787,10 @@ namespace CustomsForgeSongManager.Forms
         private ToolStripProgressBar tspbAudioPosition;
         private TabPage tpSongPacks;
         private ToolStripLabel tslblTimer;
+        /// <summary>
+        /// This is the Tab Page panel that holds the Arrangements control,
+        /// and only the Arrangements control.
+        /// </summary>
         private TabPage tpArrangements;
         private ToolStripMenuItem jSONToolStripMenuItem;
         private ToolStripMenuItem xMLToolStripMenuItem;
@@ -790,8 +798,8 @@ namespace CustomsForgeSongManager.Forms
         private TabPage tpProfileSongLists;
         public TabPage tpSettings;
         /// <summary>
-        /// The tab page for the song manager.
-        /// This is the control that contains the song manager UI
+        /// This is the Tab Page panel that holds the SongManager control,
+        /// and only the SongManager control.
         /// </summary>
         public TabPage tpSongManager;
         private ToolStripButton tsBtnUpdate;

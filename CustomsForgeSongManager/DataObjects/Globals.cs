@@ -172,6 +172,11 @@ namespace CustomsForgeSongManager.DataObjects
             set { _settings = value; }
         }
 
+        /// <summary>
+        /// This is the viewmodel for the ArrangementAnalyzer window that appears when the tab is selected.
+        /// View ranges from the "Rescan" and "Help" buttons in the top left
+        /// to the "Include Vocals" checkbox of the "Search" options in the bottom right.
+        /// </summary>
         public static ArrangementAnalyzer ArrangementAnalyzer
         {
             get { return _arrangementAnalyzer ?? (_arrangementAnalyzer = new ArrangementAnalyzer()); }
@@ -188,7 +193,9 @@ namespace CustomsForgeSongManager.DataObjects
         }
 
         /// <summary>
-        /// The song manager control
+        /// This is the view model for the Song Manager window that appears when the tab is selected.
+        /// This view has controls from the "Rescan" button in the top left
+        /// to the "Protect Official DLC" search options checkbox in the bottom right.
         /// </summary>
         public static SongManager SongManager
         {

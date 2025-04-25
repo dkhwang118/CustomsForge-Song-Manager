@@ -271,8 +271,6 @@ namespace CustomsForgeSongManager.Workers
                 // Else we continue 
                 else
                 {
-
-
                     // Initialize the worker threads
                     Thread[] threads = initializeRepairSongThreads(coreCount);
 
@@ -306,10 +304,14 @@ namespace CustomsForgeSongManager.Workers
                 threads[currentCoreNum] = new Thread(() =>
                 {
                     // While there are song paths to process
-                    while (_songPathsToProcess.TryDequeue(out var songFilePath))
+                    while (_songPathsToProcess.Count > 0)
                     {
-                        // Process the song file path
-                        repairSong(songFilePath, currentCoreNum);
+                        // Try to dequeue a song file path from the queue
+                        if (_songPathsToProcess.TryDequeue(out var songFilePath))
+                        {
+                            // Process the song file path
+                            repairSong(songFilePath, currentCoreNum);
+                        }
                     }
                 });
             }

@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows.Forms;
 
 // Usage: see the ReadMe.txt file
@@ -11,12 +13,31 @@ namespace DLogNet
 {
     public class DLogger : IDisposable
     {
-        private List<DLogMessage> logEntries;
+        /// <summary>
+        /// The complete collection of log messages sent to and processed by this class.
+        /// </summary>
+        private List<DLogMessage> logEntries = new List<DLogMessage>();
         private List<TextBox> targetTextBoxes = new List<TextBox>();
         private List<FileInfo> targetFiles = new List<FileInfo>();
         private List<NotifyIcon> targetNotifyIcons = new List<NotifyIcon>();
         private List<ProgressBar> targetProgressBars = new List<ProgressBar>();
         private List<ToolStripProgressBar> targetToolStripProgressBars = new List<ToolStripProgressBar>();
+
+        /// <summary>
+        /// The collection used to store log messages before they are processed by this class.
+        /// Outside threads can add messages to this collection, and this class will process them in a thread-safe manner.
+        /// </summary>
+        private BlockingCollection<LogMessageWithProgress> _logQueue = new BlockingCollection<LogMessageWithProgress>();
+
+        /// <summary>
+        /// The thread that processes log messages from the queue and writes them to the target controls.
+        /// </summary>
+        private Thread _processingThread = null;
+
+        /// <summary>
+        /// Flag to indicate whether the processing thread is currently running.
+        /// </summary>
+        private bool _processingThreadRunning = false;
 
         public void Log(string message, int progress = -1)
         {
@@ -64,9 +85,57 @@ namespace DLogNet
         /// </summary>
         public DLogger()
         {
-            logEntries = new List<DLogMessage>();
+            startProcessingThread();
         }
 
+        private class LogMessageWithProgress
+        {
+            public string Message { get; set; }
+            public int Progress { get; set; }
+            public LogMessageWithProgress(string message, int progress)
+            {
+                Message = message;
+                Progress = progress;
+            }
+        }
+
+        private void startProcessingThread()
+        {
+            // Define the processing thread's behavior
+            _processingThread = new Thread(() =>
+            {
+                LogMessageWithProgress msg = null;
+                while (_processingThreadRunning)
+                {
+                    // Reset the message object
+                    msg = null;
+
+                    // Try to take a message from the queue
+                    try
+                    {
+                        msg = _logQueue.Take();
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The collection has been marked as complete
+                        // => Do nothing, as we are never going to mark the collection as complete
+                    }
+
+                    // If we have a message, process it
+                    if (msg != null)
+                    {
+                        // Process the message (e.g., write to target controls)
+                        processLogMessage(msg);
+                    }
+                }
+            });
+
+            // Set the flag to indicate that the processing thread is running
+            _processingThreadRunning = true;
+
+            // Start the processing thread
+            _processingThread.Start();
+        }
 
         /// <summary>
         /// Adds TextBox control for log output target control list
@@ -211,15 +280,20 @@ namespace DLogNet
         }
 
         /// <summary>
-        /// Outputs log to each target objects
+        /// Writes the given string to the logger queue, to then be processed and written to the targets.
         /// </summary>
         /// <param name="message">Log message</param>
         /// <param name="progress">(Optional) Progress value (for ProgressBar type controls)</param>
         public void Write(string message, int progress = -1)
         {
+            // Queue the message
+            _logQueue.Add(new LogMessageWithProgress(message, progress));
+
+            // We return after the above call
+            // The lines below are how the method was before we added the queue
+
+            /*
             DLogMessage msg = new DLogMessage(message);
-            if (logEntries == null)
-                logEntries = new List<DLogMessage>();
             
             logEntries.Add(msg);
 
@@ -316,6 +390,114 @@ namespace DLogNet
             }
 
             logEntries = new List<DLogMessage>();
+            */
+        }
+
+        /// <summary>
+        /// Processes the log message and writes it to the target controls.
+        /// Used by the thread that is handled by this class.
+        /// </summary>
+        /// <param name="message"></param>
+        private void processLogMessage(LogMessageWithProgress message)
+        {
+            // Convert the message to a DLogMessage object
+            DLogMessage msg = new DLogMessage(message.Message);
+
+            // Add the message to the log entries list
+            logEntries.Add(msg);
+
+            try
+            {
+                if (targetTextBoxes != null)
+                {
+                    foreach (Control control in targetTextBoxes)
+                    {
+                        Control myControl = control;
+                        DLogMessage myLogEntry = msg;
+                        control.InvokeIfRequired(delegate
+                        {
+                            myControl.Text += myLogEntry.GetFormatted() + Environment.NewLine;
+                            if (myControl is TextBox)
+                            {
+                                ((TextBox)myControl).SelectionStart = ((TextBox)myControl).TextLength;
+                                ((TextBox)myControl).ScrollToCaret();
+                            }
+                        });
+                    }
+                }
+
+                if (targetFiles != null)
+                {
+                    foreach (FileInfo targetFile in targetFiles)
+                    {
+                        // workaround FileInfo sometimes returns false when file exists
+                        var targetPath = Path.Combine(targetFile.DirectoryName, targetFile.Name);
+                        if (!File.Exists(targetPath)) // targetFile.Exists))
+                        {
+                            using (StreamWriter sw = targetFile.CreateText())
+                            {
+                                sw.WriteLine("Log started");
+                                sw.Flush();
+                                sw.Close();
+                            }
+                        }
+
+                        using (StreamWriter sw = targetFile.AppendText())
+                        {
+                            sw.WriteLine(msg.GetFormatted());
+                            sw.Flush();
+                            sw.Close();
+                        }
+                    }
+                }
+
+                if (targetNotifyIcons != null)
+                {
+                    foreach (NotifyIcon notifyIcon in targetNotifyIcons)
+                    {
+                        ToolTipIcon icon;
+                        notifyIcon.BalloonTipText = msg.GetFormatted();
+                        notifyIcon.Visible = true;
+                        if (msg.Message == null) continue;
+                        if (msg.Message.ToLower().Contains("error"))
+                            icon = ToolTipIcon.Error;
+                        else
+                            icon = ToolTipIcon.Info;
+
+                        notifyIcon.ShowBalloonTip(1, "Information", msg.Message, icon);
+                    }
+                }
+
+                if (message.Progress > -1)
+                {
+                    if (targetProgressBars != null)
+                    {
+                        foreach (ProgressBar progressBar in targetProgressBars)
+                        {
+                            ProgressBar bar = progressBar;
+                            bar.InvokeIfRequired(delegate
+                            { bar.Value = message.Progress; });
+                        }
+                    }
+
+                    if (targetToolStripProgressBars != null)
+                    {
+                        foreach (ToolStripProgressBar toolStripProgressBar in targetToolStripProgressBars)
+                        {
+                            toolStripProgressBar.Value = message.Progress;
+                        }
+                    }
+                }
+                
+            }
+            catch (Exception ex)
+            {
+                // some intermitent error shows up here
+                Debug.Write("DLogger: " + ex.Message);
+
+                // Write to log
+                _logQueue.Add(new LogMessageWithProgress("Error: " + ex.Message, -1));
+            }
         }
 
         public void Dispose()

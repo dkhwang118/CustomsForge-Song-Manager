@@ -48,6 +48,7 @@
     <CodeAnalysisFailOnMissingRules>false</CodeAnalysisFailOnMissingRules>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
+    <UseWinFormsOutOfProcDesigner>True</UseWinFormsOutOfProcDesigner>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
     <OutputPath>bin\Release\</OutputPath>
@@ -58,6 +59,7 @@
     <ErrorReport>prompt</ErrorReport>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
+    <UseWinFormsOutOfProcDesigner>True</UseWinFormsOutOfProcDesigner>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'InnoBeta|x86'">
     <OutputPath>bin\Release\</OutputPath>
@@ -83,6 +85,7 @@
     <PlatformTarget>x86</PlatformTarget>
     <Optimize>true</Optimize>
     <Prefer32Bit>false</Prefer32Bit>
+    <UseWinFormsOutOfProcDesigner>True</UseWinFormsOutOfProcDesigner>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'InnoRelease|x86'">
     <OutputPath>bin\Release\</OutputPath>
@@ -92,6 +95,7 @@
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
     <Prefer32Bit>false</Prefer32Bit>
+    <UseWinFormsOutOfProcDesigner>True</UseWinFormsOutOfProcDesigner>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>false</SignAssembly>
@@ -117,6 +121,7 @@
     <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
+    <UseWinFormsOutOfProcDesigner>True</UseWinFormsOutOfProcDesigner>
   </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup />
@@ -191,6 +196,7 @@
     <Compile Include="Controllers\SongManagerController.cs" />
     <Compile Include="DataObjects\ArrangementData.cs" />
     <Compile Include="DataObjects\IgnitionSong.cs" />
+    <Compile Include="DataObjects\Model.cs" />
     <Compile Include="DataObjects\OfficialSong.cs" />
     <Compile Include="Forms\frmLocalProfiles.cs">
       <SubType>Form</SubType>

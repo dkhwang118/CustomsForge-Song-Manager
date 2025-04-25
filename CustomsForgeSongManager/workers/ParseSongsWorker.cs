@@ -79,7 +79,11 @@ namespace CustomsForgeSongManager.Workers
         }
 
 
-
+        /// <summary>
+        /// Method that runs when the background worker is started.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void parseSongs_DoWork(object sender, DoWorkEventArgs e)
         {
             // Initialize the data that the worker will use
@@ -389,20 +393,24 @@ namespace CustomsForgeSongManager.Workers
                 threads[i] = new Thread(() =>
                 {
                     // While there are song paths to process
-                    while (_filesToParse.TryDequeue(out var songFilePath))
+                    while (_filesToParse.Count > 0)
                     {
-                        // Process the song file path
-                        if (tryParseSong(songFilePath, currentThreadID, out SongData parsedSongData))
+                        // Try to dequeue a song file path from the queue
+                        if (_filesToParse.TryDequeue(out var songFilePath))
                         {
-                            // If the song was parsed successfully, add it to the parsed list
-                            _parsedSongData.Add(parsedSongData);
-                            // Log the successful parsing of the song
-                            queueLogMessage(currentThreadID, String.Format("Parsed song: {0}", songFilePath));
-                        }
-                        else
-                        {
-                            // Log an error message if parsing failed
-                            queueLogMessage(currentThreadID, $"Failed to parse song at {songFilePath}");
+                            // Process the song file path
+                            if (tryParseSong(songFilePath, currentThreadID, out SongData parsedSongData))
+                            {
+                                // If the song was parsed successfully, add it to the parsed list
+                                _parsedSongData.Add(parsedSongData);
+                                // Log the successful parsing of the song
+                                queueLogMessage(currentThreadID, String.Format("Parsed song: {0}", songFilePath));
+                            }
+                            else
+                            {
+                                // Log an error message if parsing failed
+                                queueLogMessage(currentThreadID, $"Failed to parse song at {songFilePath}");
+                            }
                         }
                     }
                 });
