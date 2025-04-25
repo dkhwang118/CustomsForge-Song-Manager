@@ -30,7 +30,17 @@ namespace CustomsForgeSongManager.DataObjects
         {
             _settingName = settingName;
             _settingValue = settingValue;
-            _settingValueType = settingValue.GetType();
+
+            if (settingValue != null)
+            {
+                _settingValueType = settingValue.GetType();
+            }
+            else
+            {
+                // Default to an empty string if the value is null.
+                _settingValue = string.Empty;
+                _settingValueType = typeof(string);
+            }
         }
 
         public string Name

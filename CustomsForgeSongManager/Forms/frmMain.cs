@@ -47,6 +47,11 @@ namespace CustomsForgeSongManager.Forms
         private const string APP_SETUP = "CFSMSetup.exe";
         private const string APP_EXE = "CustomsForgeSongManager.exe";
 
+        /// <summary>
+        /// Dictionary to hold references to tab pages (e.g SongManager, ArrangementAnalyzer, Settings, etc.).
+        /// </summary>
+        private Dictionary<Type,INotifyTabChanged> _tabPages = new Dictionary<Type, INotifyTabChanged>();
+
 #if INNORELEASE
         // depricated method
         private const string SERVER_URL = "http://ignition.customsforge.com/cfsm_uploads/release";
@@ -110,7 +115,15 @@ namespace CustomsForgeSongManager.Forms
                 notifyIcon_Main.Dispose();
             };
 
-            Globals.OnScanEvent += (s, e) =>
+            // Event handler to handle form closing events
+            this.FormClosing += (object sender, FormClosingEventArgs e) =>
+            {
+                // Dispose of the DLogger
+                myLog.Dispose();
+            };
+
+                // ?? Disable the tab control if a scan is in progress ??
+                Globals.OnScanEvent += (s, e) =>
             {
                 GenExtensions.InvokeIfRequired(tcMain, a =>
                 {
@@ -206,13 +219,21 @@ namespace CustomsForgeSongManager.Forms
             // If this is the first run
             if (AppSettings.Instance.FirstRun)
             {
-                if (!GeneralExtension.ValidateDisplaySettings(this, this)) // , true, true)) // uncomment for debugging
+                // If the display settings aren't set correctly
+                if (!ValidationTool.ValidateDisplaySettings(this, this)) // , true, true)) // uncomment for debugging
+                {
+                    // Display settings are adjusted using the above method
+                    // We just need to log that we adjusted them
                     Globals.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
+                }
 
-                var debugMe = Globals.DgvCurrent.Name;
-                Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
+                // Save the settings after validation
+                //Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
+                FileTools.SaveUserSettingsToFile();
+                FileTools.SaveDataGridViewSettingsToFile(Globals.DgvCurrent);
             }
 
+            // ???
             if (AppSettings.Instance.EnableNotifications)
                 Globals.MyLog.AddTargetNotifyIcon(Globals.Notifier);
             else
@@ -241,23 +262,55 @@ namespace CustomsForgeSongManager.Forms
         /// </summary>
         private void LoadSongManager()
         {
-            // don't clear the tab after the initial load
+            SongManager songManager = null;
+
+            // If the Song Manager is not already loaded, we need to load it.
+            if (!_tabPages.ContainsKey(typeof(SongManager)))
+            {
+                // Initialize the Song Manager tab panel (the view that appears when clicking on the Song Manager tab).
+                songManager = new SongManager(this);
+
+                // Initialize Song Manager's parameters
+                // TODO: eventually, this should all be inside its constructor
+                songManager.PlaySongFunction = playFunction;
+                songManager.Dock = DockStyle.Fill;
+                songManager.Location = UCLocation;
+                songManager.Size = UCSize;
+
+                // Add it to Globals... for now
+                Globals.SongManager = songManager;
+
+                // Add it to the tab page that holds it
+                tpSongManager.Controls.Add(songManager);
+
+                // Add it to the dictionary
+                _tabPages.Add(typeof(SongManager), songManager);
+            }
+            else
+            {
+                // If the Song Manager is already loaded, we just need to get it.
+                songManager = _tabPages[typeof(SongManager)] as SongManager;
+            }
+
+            /*
             if (!tpSongManager.Controls.Contains(Globals.SongManager))
             {
                 this.tpSongManager.Controls.Clear();
                 this.tpSongManager.Controls.Add(Globals.SongManager);
-
-                // Pass the main form reference so that the Song Manager can send it updates.
-                Globals.SongManager.SetMainWindow(this);
 
                 Globals.SongManager.PlaySongFunction = playFunction;
                 Globals.SongManager.Dock = DockStyle.Fill;
                 Globals.SongManager.Location = UCLocation;
                 Globals.SongManager.Size = UCSize;
             }
+            */
 
-            Globals.SongManager.UpdateToolStrip();
+            // Call UpdateToolStrip on the Song Manager
+            // NOTE: This is currently a mess of an update that seems to do a lot
+            // ==> eventually need to refactor this to only update what's necessary
+            songManager.UpdateToolStrip();
 
+            // ???
             if (AppSettings.Instance.FirstRun)
                 currentControl = Globals.Settings;
             else

@@ -60,6 +60,8 @@ namespace CustomsForgeSongManager
             myLog.AddTargetFile(AppSettings.Instance.LogFilePath);
             myLog.Write("==== This is the start of a new CFSM run log =====");
 
+            // If we are not running in debug mode...
+            // NOTE: Constants.DebugMode is currently set to always return true.
             if (!Constants.DebugMode)
             {
                 // non-UI thread exceptions handling.

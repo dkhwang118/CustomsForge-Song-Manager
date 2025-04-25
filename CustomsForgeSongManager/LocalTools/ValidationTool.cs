@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -130,5 +131,64 @@ namespace CustomsForgeSongManager.LocalTools
 
             return true;
         }
+
+        #region ValidateDisplaySettings
+        // Code copied from RocksmithToolkitLib.Extensions.GeneralExtension class
+
+
+        /// <summary>
+        /// Validates the display settings of the given form and control.
+        /// </summary>
+        /// <param name="form"></param>
+        /// <param name="control"></param>
+        /// <param name="forceAdjustment"></param>
+        /// <param name="verbose"></param>
+        /// <returns></returns>
+        public static bool ValidateDisplaySettings(Form form, Control control, bool forceAdjustment = false, bool verbose = true)
+        {
+            float displayDpi = GetDisplayDpi(control);
+            float displayScalingFactor = GetDisplayScalingFactor(control);
+            if (displayDpi != 96f || (double)displayScalingFactor != 1.0 || forceAdjustment)
+            {
+                if (verbose)
+                {
+                    MessageBox.Show(" - System Display DPI Setting (" + displayDpi + ")" + Environment.NewLine + " - System Display Screen Scale Factor (" + displayScalingFactor * 100f + "%)" + Environment.NewLine + " - Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize" + Environment.NewLine + Environment.NewLine + "If application does not display correctly then change system setting to:  " + Environment.NewLine + "Control Panel>Appearance and Personalization>Display>Smaller - 100%  ", "Validate Display Settings ...", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+                }
+
+                form.SuspendLayout();
+                form.AutoScaleDimensions = new SizeF(6f, 13f);
+                form.AutoScaleMode = AutoScaleMode.Font;
+                control.AutoSize = true;
+                form.ResumeLayout();
+                return false;
+            }
+
+            return true;
+        }
+
+        public static float GetDisplayDpi(Control control)
+        {
+            return control.CreateGraphics().DpiX;
+        }
+
+        [DllImport("gdi32.dll")]
+        private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
+        public static float GetDisplayScalingFactor(Control control)
+        {
+            float displayDpi = GetDisplayDpi(control);
+            if (displayDpi > 96f)
+            {
+                return displayDpi / 96f;
+            }
+
+            Graphics graphics = Graphics.FromHwnd(IntPtr.Zero);
+            IntPtr hdc = graphics.GetHdc();
+            int deviceCaps = GetDeviceCaps(hdc, 10);
+            int deviceCaps2 = GetDeviceCaps(hdc, 117);
+            return (float)deviceCaps2 / (float)deviceCaps;
+        }
+
+        #endregion ValidateDisplaySettings
     }
 }

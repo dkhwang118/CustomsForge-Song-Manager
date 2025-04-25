@@ -81,7 +81,7 @@ namespace CustomsForgeSongManager.UControls
         /// </summary>
         private frmMain _mainWindow = null;
 
-        public SongManager()
+        public SongManager(frmMain mainWindow)
         {
             InitializeComponent();
             // TODO: fix custom control ToolStripNumUpDown.cs
@@ -122,27 +122,41 @@ namespace CustomsForgeSongManager.UControls
             tsmiTargetLUFS.Minimum = (decimal)-30.0;
             //
             dgvSongsDetail.Visible = false;
+
             // TODO: future get Ignition based API data
             cmsCheckForUpdate.Visible = GeneralExtension.IsInDesignMode ? true : false;
             cmsGetCharterName.Visible = GeneralExtension.IsInDesignMode ? true : false;
             cmsOpenSongPage.Visible = GeneralExtension.IsInDesignMode ? true : false;
             toolStripSeparator11.Visible = GeneralExtension.IsInDesignMode ? true : false;
 
+
+
             // Instantiate the controller for this view and give it this Control's reference
             SongManagerController.Instance.SetSongManagerControl(this);
             _controller = SongManagerController.Instance;
 
+            // Set the main window of the application.
+            _mainWindow = mainWindow;
 
+            // Pass the reference to the controller too, for now...
+            _controller.SetMainFormControl(mainWindow);
 
+            // ?? Set an event handler?
+            Globals.TsLabel_StatusMsg.Click += lnkShowAll_Click;
+
+            // All this data stuff below needs to be moved outside this constructor
+            // => we either get frmMain to initialize ALL NECESSARY DATA to run the application
+            // => or we construct SongManager and then use one of the many ways we can update its data before it gets shown to the user
 
             PopulateSongManager(); // check SongData version first
-
             PopulateTagger();
             InitializeRepairMenu();
             tsmiRepairs.HideDropDown();
             UserSupport();
+
+            // This call shouldn't be made in the constructor.
             this.TabEnter();
-            Globals.TsLabel_StatusMsg.Click += lnkShowAll_Click;
+            
 
             // POC Audio Volume Correction Validation Event Handlers
             //tsmiCorrectionFactor.KeyUp += new KeyEventHandler(tsmiAudio_KeyUp);
@@ -152,19 +166,6 @@ namespace CustomsForgeSongManager.UControls
 
             // developer sandbox
             tsmiDevUseOnly.Visible = GeneralExtension.IsInDesignMode ? true : false;
-        }
-
-        /// <summary>
-        /// Sets the main window of the application.
-        /// </summary>
-        /// <param name="mainWindow">The main window.</param>
-        public void SetMainWindow(frmMain mainWindow)
-        {
-            // Set the main window of the application.
-            _mainWindow = mainWindow;
-
-            // Pass the reference to the controller too
-            _controller.SetMainFormControl(mainWindow);
         }
 
         public void DoWork(string workDescription, dynamic workerParm1 = null,

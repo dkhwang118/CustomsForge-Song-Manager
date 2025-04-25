@@ -199,7 +199,7 @@ namespace CustomsForgeSongManager.DataObjects
         /// </summary>
         public static SongManager SongManager
         {
-            get { return _songManager ?? (_songManager = new SongManager()); }
+            get { return _songManager; }
             set { _songManager = value; }
         }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -38,6 +39,11 @@ namespace DLogNet
         /// Flag to indicate whether the processing thread is currently running.
         /// </summary>
         private bool _processingThreadRunning = false;
+
+        /// <summary>
+        /// Flag to indicate whether the object has been disposed.
+        /// </summary>
+        private bool _disposed = false;
 
         public void Log(string message, int progress = -1)
         {
@@ -121,7 +127,8 @@ namespace DLogNet
                     catch (InvalidOperationException)
                     {
                         // The collection has been marked as complete
-                        // => Do nothing, as we are never going to mark the collection as complete
+                        // => Do nothing, as we are only going to mark this as complete when
+                        // the application is closing.
                     }
 
                     // If we have a message, process it
@@ -498,19 +505,75 @@ namespace DLogNet
                 // some intermitent error shows up here
                 Debug.Write("DLogger: " + ex.Message);
 
-                // Write to log
-                _logQueue.Add(new LogMessageWithProgress("Error: " + ex.Message, -1));
+                // Write add to the queue if the queue is still active
+                if (!_logQueue.IsAddingCompleted)
+                {
+                    _logQueue.Add(new LogMessageWithProgress("Error: " + ex.Message, -1));
+                }
             }
         }
 
         public void Dispose()
         {
-            logEntries = null;
-            targetTextBoxes = null;
-            targetFiles = null;
-            targetNotifyIcons = null;
-            targetProgressBars = null;
-            targetToolStripProgressBars = null;
+            Dispose(disposing: true);
+            // This object will be cleaned up by the Dispose method.
+            // Therefore, you should call GC.SuppressFinalize to
+            // take this object off the finalization queue
+            // and prevent finalization code for this object
+            // from executing a second time.
+            GC.SuppressFinalize(this);
+        }
+
+        // Dispose(bool disposing) executes in two distinct scenarios.
+        // If disposing equals true, the method has been called directly
+        // or indirectly by a user's code. Managed and unmanaged resources
+        // can be disposed.
+        // If disposing equals false, the method has been called by the
+        // runtime from inside the finalizer and you should not reference
+        // other objects. Only unmanaged resources can be disposed.
+        protected virtual void Dispose(bool disposing)
+        {
+            // Check to see if Dispose has already been called.
+            if (!this._disposed)
+            {
+                // If disposing equals true, dispose all managed
+                // and unmanaged resources.
+                if (disposing)
+                {
+                    logEntries = null;
+                    targetTextBoxes = null;
+                    targetFiles = null;
+                    targetNotifyIcons = null;
+                    targetProgressBars = null;
+                    targetToolStripProgressBars = null;
+                }
+
+                // Call the appropriate methods to clean up
+                // unmanaged resources here.
+
+                // Stop the processing thread
+                _processingThreadRunning = false;
+
+                // Mark the collection as complete to unblock the processing thread
+                _logQueue.CompleteAdding();
+                _processingThread = null;
+
+                // Note disposing has been done.
+                _disposed = true;
+            }
+        }
+
+        // Use C# finalizer syntax for finalization code.
+        // This finalizer will run only if the Dispose method
+        // does not get called.
+        // It gives your base class the opportunity to finalize.
+        // Do not provide finalizer in types derived from this class.
+        ~DLogger()
+        {
+            // Do not re-create Dispose clean-up code here.
+            // Calling Dispose(disposing: false) is optimal in terms of
+            // readability and maintainability.
+            Dispose(disposing: false);
         }
     }
 }
