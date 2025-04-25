@@ -266,6 +266,11 @@ namespace CustomsForgeSongManager.DataObjects
                 Log(message);
         }
 
+        /// <summary>
+        /// Reset the ToolStrip values.
+        /// The ToolStrip holds the progress bar, main message,
+        /// status message, cancel label, and the disabled counter label.
+        /// </summary>
         public static void ResetToolStripGlobals()
         {
             try

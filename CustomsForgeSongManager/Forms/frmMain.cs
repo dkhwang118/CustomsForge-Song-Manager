@@ -70,7 +70,12 @@ namespace CustomsForgeSongManager.Forms
         public frmMain(DLogNet.DLogger myLog)
         {
             InitializeComponent();
+
+            // initialize the log
             Globals.MyLog = myLog;
+            myLog.AddTargetTextBox(tbLog); 
+            Globals.TbLog = this.tbLog;
+            //Globals.MyLog.AddTargetTextBox(tbLog);
 
             // verify application directory structure
             FileTools.VerifyCfsmFolders();
@@ -81,7 +86,8 @@ namespace CustomsForgeSongManager.Forms
 
             //this will initialize classes that need to be initialized right away.
             TypeExtensions.InitializeClasses(new string[] { "UTILS_INIT", "CFSM_INIT" }, new Type[] { }, new object[] { });
-
+            
+            // Set up the top ToolStrip
             // important prevent toolstrip from growing/changing at runtime
             // toolstrip may appear changed in design mode (this is a known VS bug)
             TopToolStripPanel.MaximumSize = new Size(0, 28); // force height and makes tsLable_Tagger positioning work
@@ -101,9 +107,14 @@ namespace CustomsForgeSongManager.Forms
             Globals.TsLabel_StatusMsg = this.tsLabel_StatusMsg;
             Globals.TsLabel_DisabledCounter = this.tsLabel_DisabledCounter;
             Globals.TsLabel_Cancel = this.tsLabel_Cancel;
-            Globals.TbLog = this.tbLog;
-            Globals.ResetToolStripGlobals();
-            Globals.MyLog.AddTargetTextBox(tbLog);
+
+
+
+            ResetBottomToolStrip();
+
+
+            
+
             //    Globals.CFMTheme.AddListener(this);
 
             // event handler to maybe get rid of notifier icon on closing
@@ -122,8 +133,8 @@ namespace CustomsForgeSongManager.Forms
                 myLog.Dispose();
             };
 
-                // ?? Disable the tab control if a scan is in progress ??
-                Globals.OnScanEvent += (s, e) =>
+            // ?? Disable the tab control if a scan is in progress ??
+            Globals.OnScanEvent += (s, e) =>
             {
                 GenExtensions.InvokeIfRequired(tcMain, a =>
                 {
@@ -144,7 +155,6 @@ namespace CustomsForgeSongManager.Forms
             // load settings
             // old method => leave here until we are sure we can delete it
             Globals.Settings.LoadSettingsFromFile();
-
             // load settings new method
             FileTools.LoadSettingsFromFile();
 
@@ -249,10 +259,26 @@ namespace CustomsForgeSongManager.Forms
             //CustomsForgeSongManagerLib.Extensions.Benchmark(LoadSongManager, 1);
         }
 
-        public frmMain()
+        /// <summary>
+        /// Reset the ToolStrip values.
+        /// The ToolStrip holds the progress bar, main message,
+        /// status message, cancel label, and the disabled counter label.
+        /// </summary>
+        public void ResetBottomToolStrip()
         {
-            //  throw new Exception("Improper constructor used");
+            try
+            {
+                tsProgressBar_Main.Value = 0;
+                tsLabel_MainMsg.Visible = false;
+                tsLabel_StatusMsg.Visible = false;
+                tsLabel_Cancel.Visible = false;
+                tsLabel_Cancel.Text = "Cancel";
+                tsLabel_DisabledCounter.Visible = false;
+            }
+            catch {/* DO NOTHING */}
         }
+
+
 
         /// <summary>
         /// Method to load and/or display the Song Manager tab.
