@@ -350,6 +350,11 @@ namespace CustomsForgeSongManager.UControls
             return ro;
         }
 
+        /// <summary>
+        /// Update the tool strip with the current settings and song collection.
+        /// NOTE: If something sets the Globals.ReloadSongManager or Globals.RescanSongManager to true,
+        /// this is where the rescan/reload is handled.
+        /// </summary>
         public void UpdateToolStrip()
         {
             chkIncludeSubfolders.Checked = AppSettings.Instance.IncludeSubfolders;

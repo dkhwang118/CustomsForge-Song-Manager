@@ -129,7 +129,11 @@ namespace CustomsForgeSongManager.Forms
             };
 
             // load settings
+            // old method => leave here until we are sure we can delete it
             Globals.Settings.LoadSettingsFromFile();
+
+            // load settings new method
+            FileTools.LoadSettingsFromFile();
 
             // set app title
             var strFormatVersion = "{0} (v{1} - {2})";
@@ -198,6 +202,8 @@ namespace CustomsForgeSongManager.Forms
                 CustomControls.BetterDialog2.ShowDialog(diaMsg, "Time To Update ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "WARNING ...", 0, 150);
             }*/
 
+
+            // If this is the first run
             if (AppSettings.Instance.FirstRun)
             {
                 if (!GeneralExtension.ValidateDisplaySettings(this, this)) // , true, true)) // uncomment for debugging

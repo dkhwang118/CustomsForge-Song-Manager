@@ -7,6 +7,7 @@ using System.Xml.Serialization;
 using CustomsForgeSongManager.LocalTools;
 using GenTools;
 using DataGridViewTools;
+using System.Reflection;
 
 namespace CustomsForgeSongManager.DataObjects
 {
@@ -336,7 +337,13 @@ namespace CustomsForgeSongManager.DataObjects
             }
         }
 
-        public void LoadFromFile(string settingsPath, bool verbose = false)
+        /// <summary>
+        /// Loads the application settings from the specified file.
+        /// </summary>
+        /// <param name="settingsPath">The file path for the settings file.</param>
+        /// <param name="verbose"></param>
+        /// <returns>The Application Settings object with the data read from file.</returns>
+        public AppSettings LoadFromFile(string settingsPath, bool verbose = false)
         {
             if (!String.IsNullOrEmpty(settingsPath) && File.Exists(settingsPath))
             {
@@ -350,7 +357,7 @@ namespace CustomsForgeSongManager.DataObjects
                 RestoreDefaults();
 
             if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
-                return;
+                return this;
 
             // TODO: allow customized grid settings to be saved and loaded by name
             if (File.Exists(Constants.GridSettingsPath))
@@ -374,12 +381,14 @@ namespace CustomsForgeSongManager.DataObjects
                 //Globals.Log("<WARNING> Did not find file: " + Path.GetFileName(Constants.GridSettingsPath));
                 //RAExtensions.ManagerGridSettings = null; // reset
             }
+
+            return this;
         }
 
         public void LoadSettingsFromStream(Stream stream)
         {
-            var x = stream.DeserializeXml<AppSettings>();
-            var props = GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            AppSettings x = stream.DeserializeXml<AppSettings>();
+            PropertyInfo[] props = GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
             var emptyObjParams = new object[] { };
 
@@ -391,6 +400,28 @@ namespace CustomsForgeSongManager.DataObjects
                         p.SetValue(this, p.GetValue(x, emptyObjParams), emptyObjParams);
                 }
         }
+
+        /// <summary>
+        /// Get all the settings for the current instance.
+        /// </summary>
+        /// <returns>A list of the settings.</returns>
+        public List<Tuple<string, object>> GetSettings()
+        {
+            List<Tuple<string, object>> settings = new List<Tuple<string, object>>();
+
+            // Get all public properties of the current instance
+            PropertyInfo[] props = GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var emptyObjParams = new object[] { };
+
+            // Add all properties to the settings list
+            foreach (PropertyInfo p in props)
+            {
+                settings.Add(new Tuple<string,object>(p.Name, p.GetValue(this, emptyObjParams)));
+            }
+
+            return settings;
+        }
+
 
         public void RestoreDefaults()
         {

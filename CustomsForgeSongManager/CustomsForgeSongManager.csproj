@@ -194,6 +194,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controllers\SongManagerController.cs" />
+    <Compile Include="DataObjects\AbstractApplicationSetting.cs" />
+    <Compile Include="DataObjects\ApplicationSetting.cs" />
     <Compile Include="DataObjects\ArrangementData.cs" />
     <Compile Include="DataObjects\IgnitionSong.cs" />
     <Compile Include="DataObjects\Model.cs" />
@@ -282,6 +284,7 @@
     <Compile Include="LocalTools\TaggerTools.cs" />
     <Compile Include="LocalTools\ThreadSafeDLCPackageCreator.cs" />
     <Compile Include="LocalTools\ThreadSafePsarcPackager.cs" />
+    <Compile Include="LocalTools\ValidationTool.cs" />
     <Compile Include="LocalTools\VersionInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>

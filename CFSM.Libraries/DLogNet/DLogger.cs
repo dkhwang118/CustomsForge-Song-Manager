@@ -99,6 +99,9 @@ namespace DLogNet
             }
         }
 
+        /// <summary>
+        /// Initializes and starts the thread that processes incoming log messages.
+        /// </summary>
         private void startProcessingThread()
         {
             // Define the processing thread's behavior

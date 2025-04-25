@@ -15,7 +15,11 @@ using System.Threading;
 using System.Collections.Generic;
 
 namespace CustomsForgeSongManager.UControls
-{
+{    /// <summary>
+     /// This is the view model for the Settings tab.
+     /// This view has controls from the "RS2014 Installation Directory" line at the top
+     /// to the "Reload Settings" button on the bottom.
+     /// </summary>
     public partial class Settings : UserControl, INotifyTabChanged
     {
         private bool isDirty = false;

@@ -835,28 +835,19 @@ namespace CustomsForgeSongManager.LocalTools
             }
         }
 
-        public static void LoadSettingsFromFile(bool validateInstallDirectory, bool validateD3D, bool verbose = false)
+        /// <summary>
+        /// Loads the application settings from the settings file.
+        /// </summary>
+        /// <param name="verbose"></param>
+        public static void LoadSettingsFromFile(bool verbose = false)
         {
             try
             {
-                AppSettings.Instance.LoadFromFile(Constants.AppSettingsPath, verbose);
+                // Try to load the settings from the file into the singleton instance
+                AppSettings settings = AppSettings.Instance.LoadFromFile(Constants.AppSettingsPath, verbose);
 
-                if (validateInstallDirectory)
-                {
-                    ValidateRsDir();
-                    ValidateD3D();
-
-                    if (!AppSettings.Instance.EnableQuarantine)
-                        Globals.Log("<WARNING> 'Auto Quarantine' is disabled ...");
-                }
-
-                if (validateD3D)
-                {
-                    ValidateD3D();
-
-                    if (!AppSettings.Instance.EnableQuarantine)
-                        Globals.Log("<WARNING> 'Auto Quarantine' is disabled ...");
-                }
+                // Put the latest settings into the model
+                Model.Instance.SetApplicationSettings(AppSettings.Instance.GetSettings());
             }
             catch (Exception ex)
             {
