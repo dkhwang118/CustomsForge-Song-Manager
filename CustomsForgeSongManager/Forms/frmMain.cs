@@ -25,6 +25,7 @@ using RocksmithToolkitLib.Extensions;
 using System.Configuration;
 using System.Globalization;
 using DLogNet;
+using CustomsForgeSongManager.DataManager;
 
 // NOTE: the app is designed for default user screen resolution of 1024x768
 // dev screen resolution should be set to this when designing forms and controls
@@ -78,17 +79,27 @@ namespace CustomsForgeSongManager.Forms
             // Initialize the form and its components
             InitializeComponent();
 
-            // Set the form's title
-            setApplicationTitle();
-
             // Setup the log textbox
             SMLog.SetMainLogTextBox(tbLog);
-            //Globals.TbLog = this.tbLog;
-            //Globals.MyLog.AddTargetTextBox(tbLog);
+
+
+            // First - Try to load the application settings
+            // If we can't load the app settings from the file, we will create a new one
+            if (!SettingsManager.TryLoadApplicationSettingsFromFile(DirectoryManager.AppSettingsPath))
+            {
+                // TODO: Ask the user to select its location or prompt to create a new one
+                // For now, we will create a new one with default values
+                SettingsManager.SetApplicationSettings(AppSettings.StartSingletonInstance());
+            }
+
+            // Set the form's title
+            setApplicationTitle();
 
             // verify application directory structure
             //FileTools.VerifyCfsmFolders();
             // FileTools.VerifyCfsmFiles(); 
+            ValidationTool.ForceValidateRocksmithInstallDirectory(DirectoryManager.RSInstalledDir);
+            ValidationTool.ValidateD3D();
             ValidationTool.ValidateSongManagerFolders();
 
             // create VersionInfo.txt file
@@ -180,10 +191,6 @@ namespace CustomsForgeSongManager.Forms
 
 
 
-            // bring CFSM to the front on startup
-            this.BringToFront();
-            this.WindowState = AppSettings.Instance.FullScreen ? FormWindowState.Maximized : FormWindowState.Normal;
-            this.Show(); // triggers Form.Shown event
 
             // Log app runtime environment
 
@@ -204,28 +211,39 @@ namespace CustomsForgeSongManager.Forms
             }*/
 
 
+
+
+
+
+            // If the display settings aren't set correctly
+            if (!ValidationTool.ValidateDisplaySettings(this, this)) // , true, true)) // uncomment for debugging
+            {
+                // Display settings are adjusted using the above method
+                // We just need to log that we adjusted them
+                SMLog.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
+            }
+
+
+
+
             // If this is the first run
             if (AppSettings.Instance.FirstRun)
             {
-                // If the display settings aren't set correctly
-                if (!ValidationTool.ValidateDisplaySettings(this, this)) // , true, true)) // uncomment for debugging
-                {
-                    // Display settings are adjusted using the above method
-                    // We just need to log that we adjusted them
-                    SMLog.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
-                }
-
-                // Save the settings after validation
-                FileTools.SaveApplicationSettingsToFile();
-
                 // Set the first page shown to be the Settings tab
                 tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSettings);
             }
             else
             {
                 // Set the first page shown to be the Song Manager tab
+                loadSongManagerTabPage();
                 tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSongManager);
             }
+
+            // bring CFSM to the front on startup
+            this.BringToFront();
+            this.WindowState = AppSettings.Instance.FullScreen ? FormWindowState.Maximized : FormWindowState.Normal;
+            this.Show(); // triggers Form.Shown event
+
         }
 
         /// <summary>

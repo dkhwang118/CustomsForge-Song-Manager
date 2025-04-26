@@ -33,6 +33,7 @@ using RocksmithToolkitLib;
 using System.Globalization;
 using CustomsForgeSongManager.Controllers;
 using static CustomsForgeSongManager.Forms.frmMain;
+using CustomsForgeSongManager.DataManager;
 
 
 // TODO: convert SongManager, Duplicates, SetlistManager to use a common bound FilterBindingList<SongData>() dataset.
@@ -155,6 +156,15 @@ namespace CustomsForgeSongManager.UControls
 
             // ?? Set an event handler?
             Globals.TsLabel_StatusMsg.Click += lnkShowAll_Click;
+
+
+            // When the song master collection changes, refresh the datagridview
+            Globals.MasterCollection.ListChanged += (s, e) => 
+            {
+                LoadFilteredBindingList(Globals.MasterCollection.ToList());
+                dgvSongsMaster.Refresh(); 
+            };
+
 
             // All this data stuff below needs to be moved outside this constructor
             // => we either get frmMain to initialize ALL NECESSARY DATA to run the application
@@ -745,13 +755,28 @@ namespace CustomsForgeSongManager.UControls
             // respect processing order
             DgvExtensions.DoubleBuffered(dgvSongsMaster);
             CFSMTheme.InitializeDgvAppearance(dgvSongsMaster);
-            // reload column order, width, visibility, and settings
-            Globals.Settings.LoadSettingsFromFile(dgvSongsMaster, true);
 
-            if (RAExtensions.ManagerGridSettings != null)
-                dgvSongsMaster.ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
+            // reload column order, width, visibility, and settings
+            //Globals.Settings.LoadSettingsFromFile(dgvSongsMaster, true);
+
+            // If we successfully loaded the DataGridView settings
+            string path = DirectoryManager.GetGridSettingsPathForGridName(dgvSongsMaster.Name);
+            if (SettingsManager.TryLoadDataGridViewSettingsFromFile(path, out RADataGridViewSettings settings))
+            {
+                // Use it to reload grid settings
+                dgvSongsMaster.ReLoadColumnOrder(SettingsManager.ManagerGridSettings.ColumnOrder);
+            }
             else
-                Globals.Settings.SaveSettingsToFile(dgvSongsMaster);
+            {
+                // If we can't load the settings, create a new settings object
+                settings = RAExtensions.SaveColumnOrder(dgvSongsMaster);
+
+                // Set the settings as the new DGV settings
+                SettingsManager.SetDataGridViewSettings(settings);
+
+                // Save the settings to file
+                FileTools.SaveDataGridViewSettingsToFile(settings, dgvSongsMaster);
+            }
         }
 
         private void PopulateMenuWithColumnHeaders(ContextMenuStrip contextMenuStrip)

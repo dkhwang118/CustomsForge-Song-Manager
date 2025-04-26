@@ -1,10 +1,16 @@
 ﻿using CustomsForgeSongManager.DataObjects;
+using CustomsForgeSongManager.LocalTools;
+using DataGridViewTools;
+using GenTools;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace CustomsForgeSongManager.DataManager
 {
@@ -26,6 +32,13 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         private static AppSettings _appSettingsInstance = null;
 
+        private static RADataGridViewSettings _gridSettings = null;
+
+        public static RADataGridViewSettings ManagerGridSettings
+        {
+            get { return _gridSettings; }
+        }
+
         /// <summary>
         /// Set the application settings with the given AppSettings object.
         /// </summary>
@@ -44,6 +57,16 @@ namespace CustomsForgeSongManager.DataManager
 
             // Set the application settings object
             _appSettingsInstance = newSettings;
+
+            // Set the settings object as the singleton instance for the AppSettings class
+            AppSettings.SetSingletonInstance(newSettings);
+
+            // We need to specifically set the file path for the rocksmith install directory for now
+            if (newSettings.RSInstalledDir != null)
+            {
+                // Set the RSInstalledDir property in the AppSettings class
+                DirectoryManager.SetRocksmithInstallationDirectory(newSettings.RSInstalledDir);
+            }
 
             // Release the write lock
             _appSettingsLock.ExitWriteLock();
@@ -172,6 +195,73 @@ namespace CustomsForgeSongManager.DataManager
             settingValue = null;
             _appSettingsLock.ExitReadLock();
             return false;
+        }
+
+        /// <summary>
+        /// Loads the application settings from the settings file.
+        /// </summary>
+        /// <param name="verbose"></param>
+        public static bool TryLoadApplicationSettingsFromFile(string settingsFilePath, bool verbose = false)
+        {
+            AppSettings settings = null;
+            try
+            {
+                // Try to read the settings from the file 
+                if (AppSettings.TryGetSettingsFromFile(settingsFilePath, out settings))
+                {
+                    // If the settings were successfully loaded, set the settings instance
+                    SetApplicationSettings(settings);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                SMLog.Log(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
+            }
+            return false;
+        }
+
+
+        public static bool TryLoadDataGridViewSettingsFromFile(string settingsPath, out RADataGridViewSettings settings)
+        {
+            settings = null;
+
+            // If a file exists at the given path
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    // load the settings from the file
+                    settings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(settingsPath);
+
+                    // Set it to the RAExtensions class
+                    SetDataGridViewSettings(settings);
+
+                    SMLog.Log("Loaded File: " + Path.GetFileName(settingsPath));
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    SMLog.Log("<ERROR> GridSettings could not be loaded ...");
+                    SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
+                    SMLog.Log(ex.Message);
+                    RAExtensions.ManagerGridSettings = null; // reset
+                    _gridSettings = null; // reset
+                }
+            }
+
+            return false;
+        }
+
+        public static void SetDataGridViewSettings(RADataGridViewSettings settings)
+        {
+            // Get the write lock
+            _appSettingsLock.EnterWriteLock();
+            // Set the settings
+            RAExtensions.ManagerGridSettings = settings;
+            _gridSettings = settings;
+            // Release the write lock
+            _appSettingsLock.ExitWriteLock();
         }
     }
 }

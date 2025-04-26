@@ -37,6 +37,8 @@ namespace CustomsForgeSongManager.LocalTools
                 if (Directory.Exists(Path.Combine(installDir, "dlc")))
                 {
                     // We consider this a valid install directory
+                    // Set the selected path as the Rocksmith installation directory
+                    DirectoryManager.SetRocksmithInstallationDirectory(installDir);
                     return true;
                 }
             }
@@ -197,6 +199,65 @@ namespace CustomsForgeSongManager.LocalTools
         }
 
         #endregion ValidateDisplaySettings
+
+        /// <summary>
+        /// Validates the given directory as a Rocksmith installation directory,
+        /// OR prompts the user until a valid directory is selected.
+        /// </summary>
+        /// <param name="installDir">The directory to be validated.</param>
+        /// <returns>True if the directory is a valid Rocksmith installation directory.</returns>
+        public static void ForceValidateRocksmithInstallDirectory(string installDir)
+        {
+            // If the directory is not set or does not exist, prompt the user to select it
+            if (String.IsNullOrEmpty(installDir) || !Directory.Exists(installDir) || !Directory.Exists(Path.Combine(installDir, "dlc")))
+            {
+                // Inform the user
+                MessageBox.Show(new Form { TopMost = true },
+                                        String.Format("Rocksmith Installation Directory Not Found! " +
+                                        "{0}Please select the Rocksmith Installation Directory.", Environment.NewLine),
+                                        Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                string selectedPath = null;
+                do
+                {
+                    using (var fbd = new FolderBrowserDialog())
+                    {
+                        fbd.Description = "Select Rocksmith 2014 Installation Directory";
+                        fbd.SelectedPath = LocalExtensions.GetSteamDirectory();
+
+                        // If the user cancels the dialog, continue the loop and ask again.
+                        if (fbd.ShowDialog() != DialogResult.OK)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            // Check if the selected path contains the required 'dlc' subdirectory
+                            if (!Directory.Exists(Path.Combine(installDir, "dlc")))
+                            {
+                                // Show a message for the user to select a valid directory
+                                MessageBox.Show(new Form { TopMost = true },
+                                    String.Format("Please select a directory that  {0}contains a 'dlc' subdirectory.", Environment.NewLine),
+                                    Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                            }
+                            else
+                            {
+                                // If the selected path is valid, set isValidPath to true
+                                selectedPath = fbd.SelectedPath;
+                            }
+                        }
+                    }
+                } while (selectedPath == null);
+
+                // Set the selected path as the Rocksmith installation directory
+                DirectoryManager.SetRocksmithInstallationDirectory(selectedPath);
+            }
+
+            SMLog.Log("Validated RS2014 Installation Directory: " + installDir);
+        }
+
+    
 
         public static void ValidateSongManagerFolders()
         {

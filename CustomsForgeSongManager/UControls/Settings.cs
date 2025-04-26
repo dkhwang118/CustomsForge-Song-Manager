@@ -48,7 +48,7 @@ namespace CustomsForgeSongManager.UControls
             {
                 Globals.DgvCurrent = dgvCurrent;
                 AppSettings.Instance.LoadFromFile(Constants.AppSettingsPath, verbose);
-                var debugMe = AppSettings.Instance.ArrangementAnalyzerFilter;
+                //var debugMe = AppSettings.Instance.ArrangementAnalyzerFilter;
 
                 // These element values should be set when the tab page is selected
                 // => no need to load them if another process is just trying to load application settings values
@@ -76,7 +76,7 @@ namespace CustomsForgeSongManager.UControls
             }
             catch (Exception ex)
             {
-                Globals.MyLog.Write(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
+                SMLog.Log(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
             }
         }
 

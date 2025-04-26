@@ -191,6 +191,16 @@ namespace CustomsForgeSongManager.DataManager
         public static string RemasteredMaxFolder { get { return Path.Combine(RemasteredFolder, "maxfive"); } }
         public static string QuarantineFolder { get { return Path.Combine(Constants.WorkFolder, "Quarantine"); } }
         public static string FfmpegLogPath { get { return Path.Combine(WorkFolder, "ffmpeg.log"); } }
+
+
+
+
+
+
+        /// <summary>
+        /// Method that asks the DirectoryManager to initialize the default paths
+        /// for the paths that do not depend on user selection.
+        /// </summary>
         public static void InitializeDefaultPaths()
         {
             _tempWorkFolder = Path.Combine(Path.GetTempPath(), "CFSM");

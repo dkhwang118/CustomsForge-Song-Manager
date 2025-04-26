@@ -335,9 +335,8 @@ namespace CustomsForgeSongManager.DataObjects
         {
             get
             {
-                if (_instance == null)
-                    _instance = new AppSettings();
-
+                // NOTE: removed the null check to denote that the
+                // instance should always be *intentionally* created/set.
                 return _instance;
             }
         }
@@ -435,15 +434,14 @@ namespace CustomsForgeSongManager.DataObjects
         }
 
         /// <summary>
-        /// Loads the application settings from the specified file.
+        /// Tries to get the settings from the specified file.
         /// </summary>
-        /// <param name="settingsPath">The file path for the settings file.</param>
-        /// <param name="loadSettings">True if the settings are to be loaded into the application after reading them.</param>
-        /// <param name="verbose"></param>
-        /// <returns>The Application Settings object with the data read from file.</returns>
-        public static AppSettings GetSettingsFromFile(string settingsPath, bool loadSettings = false, bool verbose = false)
+        /// <param name="settingsPath"></param>
+        /// <param name="settings"></param>
+        /// <returns>True if the setting were successfully read from file.</returns>
+        public static bool TryGetSettingsFromFile(string settingsPath, out AppSettings settings)
         {
-            AppSettings settings = null;
+            settings = null;
 
             // If the given path is not null/empty AND a file exists at that path
             if (!String.IsNullOrEmpty(settingsPath) && File.Exists(settingsPath))
@@ -453,94 +451,16 @@ namespace CustomsForgeSongManager.DataObjects
                 {
                     settings = stream.DeserializeXml<AppSettings>();
                 }
-
-                if (verbose)
-                    SMLog.Log("Loaded File: " + Path.GetFileName(Constants.AppSettingsPath));
+                return true;
             }
-            else
-            {
-                // if the file does not exist, create a new instance of AppSettings with default values
-                settings = new AppSettings();
-                settings.RestoreDefaults();
-            }
-
-            // If we want to load the settings from the file into the current instance
-            if (loadSettings)
-            {
-                // If we currently do not have an instance of AppSettings
-                if (_instance == null)
-                {
-                    // set the current instance of AppSettings to the loaded settings
-                    _instance = settings;
-                }
-                else
-                {
-                    // Copy the settings from the settings object into the current instance
-                    PropertyInfo[] props = settings.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    var emptyObjParams = new object[] { };
-                    foreach (var p in props)
-                    {
-                        if (p.CanRead && p.CanWrite)
-                        {
-                            var ignore = p.GetCustomAttributes(typeof(XmlIgnoreAttribute), true).Length > 0;
-                            if (!ignore)
-                                p.SetValue(_instance, p.GetValue(settings, emptyObjParams), emptyObjParams);
-                        }
-                    }
-                }
-
-                // Load the Rocksmith installation directory into the directory manager
-                DirectoryManager.SetRocksmithInstallationDirectory(settings.RSInstalledDir);
-            }
-
-            return settings;
+            return false;
         }
-
-        public static RADataGridViewSettings LoadDataGridViewSettingsFromFile(string settingsPath)
-        {
-            RADataGridViewSettings settings = null;
-            //settingsPath = Constants.GridSettingsPath;
-
-            // If we do not have a current DataGridView, we cannot load the grid settings
-            if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
-                return settings;
-
-            // If a file exists at the given path
-            if (File.Exists(settingsPath))
-            {
-                try
-                {
-                    // load the settings from the file
-                    settings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(settingsPath);
-                    RAExtensions.ManagerGridSettings = settings;
-                    SMLog.Log("Loaded File: " + Path.GetFileName(settingsPath));
-                }
-                catch (Exception ex)
-                {
-                    SMLog.Log("<ERROR> GridSettings could not be loaded ...");
-                    SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
-                    SMLog.Log(ex.Message);
-                    RAExtensions.ManagerGridSettings = null; // reset
-                }
-            }
-            else
-            {
-                // if the file does not exist, save the current settings to the file
-                FileTools.SaveDataGridViewSettingsToFile(Globals.DgvCurrent);
-                Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-                //SMLog.Log("<WARNING> Did not find file: " + Path.GetFileName(Constants.GridSettingsPath));
-                //RAExtensions.ManagerGridSettings = null; // reset
-            }
-
-            return settings;
-        }
-
 
         public void RestoreDefaults()
         {
             RAExtensions.ManagerGridSettings = new RADataGridViewSettings();
             Instance.EnableQuarantine = false; // false because users like using corrupt CDLC ... ICBIBT
-            Instance.LogFilePath = Constants.LogFilePath;
+            Instance.LogFilePath = DirectoryManager.LogFilePath;
             Instance.IncludeRS1CompSongs = false; // false for fewer new user issues
             Instance.IncludeRS2BaseSongs = false;
             Instance.IncludeCustomPacks = false;
@@ -574,11 +494,30 @@ namespace CustomsForgeSongManager.DataObjects
             // Instance.DownloadsDir = String.Empty; 
         }
 
+        /// <summary>
+        /// Set the singleton instance of AppSettings.
+        /// </summary>
+        /// <param name="settings"></param>
+        public static void SetSingletonInstance(AppSettings settings)
+        {
+            _instance = settings;
+        }
+
+        /// <summary>
+        /// Start the singleton instance of AppSettings.
+        /// </summary>
+        /// <returns>The singleton instance.</returns>
+        public static AppSettings StartSingletonInstance()
+        {
+            _instance = new AppSettings();
+            return _instance;
+        }
+
         /// Initialise settings with default values
         /// </summary>
-        internal AppSettings()
+        private AppSettings()
         {
-            LogFilePath = Constants.LogFilePath;
+            LogFilePath = DirectoryManager.LogFilePath;
         }
 
         [XmlRoot("CustomSetting")]

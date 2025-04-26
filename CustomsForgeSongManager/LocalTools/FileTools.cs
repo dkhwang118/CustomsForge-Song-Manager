@@ -15,6 +15,7 @@ using RocksmithToolkitLib.PSARC;
 using System.Xml;
 using System.Diagnostics;
 using DLogNet;
+using CustomsForgeSongManager.DataManager;
 
 namespace CustomsForgeSongManager.LocalTools
 {
@@ -824,56 +825,57 @@ namespace CustomsForgeSongManager.LocalTools
             }
         }
 
-
-        public static void SaveDataGridViewSettingsToFile(DataGridView dgvToSave)
+        /// <summary>
+        /// Loads the application settings from the settings file.
+        /// </summary>
+        /// <param name="verbose"></param>
+        public static bool TryLoadApplicationSettingsFromFile(string settingsFilePath, out AppSettings settings,
+                                                                bool verbose = false)
         {
+            settings = null;
+            try
+            {
+                // Try to read the settings from the file 
+                if (AppSettings.TryGetSettingsFromFile(settingsFilePath, out settings))
+                {
+                    // If the settings were successfully loaded, set the settings instance
+                    SettingsManager.SetApplicationSettings(settings);
 
+                }
+            }
+            catch (Exception ex)
+            {
+                SMLog.Log(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Save the given DGV settings for the given DGV object to a file.
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="dgvToSave"></param>
+        public static void SaveDataGridViewSettingsToFile(RADataGridViewSettings settings, DataGridView dgvToSave)
+        {
             Debug.WriteLine("Save DataGridView Settings: " + dgvToSave.Name);
 
             try
             {
-                // If dgvCurrent is null or has no name, return early
-                if (String.IsNullOrEmpty(dgvToSave.Name)) // || dgvCurrent.RowCount == 0)
+                // If the directory for the grid settings folder does not exist, create it
+                if (!Directory.Exists(DirectoryManager.GridSettingsFolder))
                 {
-                    return;
+                    Directory.CreateDirectory(DirectoryManager.GridSettingsFolder);
                 }
-                else
-                {
-                    // If the directory for the grid settings folder does not exist, create it
-                    if (!Directory.Exists(Constants.GridSettingsFolder))
-                    {
-                        Directory.CreateDirectory(Constants.GridSettingsFolder);
-                    }
 
-                    // Save the current DataGridView column order to the specified file
-                    string gridSettingsPath = Constants.GetGridSettingsPathForGridName(dgvToSave.Name);
-                    SerialExtensions.SaveToFile(gridSettingsPath, RAExtensions.SaveColumnOrder(dgvToSave));
-                    SMLog.Log("Saved File: " + Path.GetFileName(gridSettingsPath));
-                }
+                // Save the current DataGridView column order to the specified file
+                string gridSettingsPath = DirectoryManager.GetGridSettingsPathForGridName(dgvToSave.Name);
+                SerialExtensions.SaveToFile(gridSettingsPath, settings);
+                SMLog.Log("Saved File: " + Path.GetFileName(gridSettingsPath));             
             }
             catch (Exception ex)
             {
                 SMLog.Log(String.Format("<Error> SaveDataGridViewSettingsToFile: {0}", ex.Message));
             }
-        }
-
-        /// <summary>
-        /// Loads the application settings from the settings file.
-        /// </summary>
-        /// <param name="verbose"></param>
-        public static AppSettings LoadApplicationSettingsFromFile(string settingsFilePath, bool verbose = false)
-        {
-            AppSettings settings = null;
-            try
-            {
-                // Try to load the settings from the file into the singleton instance
-                settings = AppSettings.GetSettingsFromFile(settingsFilePath, true, verbose);
-            }
-            catch (Exception ex)
-            {
-                Globals.MyLog.Write(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
-            }
-            return settings;
         }
     }
 }
