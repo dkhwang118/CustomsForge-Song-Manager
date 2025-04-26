@@ -92,8 +92,8 @@ namespace CustomsForgeSongManager.LocalTools
                 if (!foundSteamDirPath) // prevents unnecessesary display of the message
                 {
                     // needed for WinXP SP3 which throws NullReferenceException when registry not found
-                    Globals.Log("RS2014 User Profile Directory not found in Registry");
-                    Globals.Log("You will need to manually locate the user profile directory");
+                    SMLog.Log("RS2014 User Profile Directory not found in Registry");
+                    SMLog.Log("You will need to manually locate the user profile directory");
                 }
             }
 
@@ -138,7 +138,7 @@ namespace CustomsForgeSongManager.LocalTools
             if (!String.IsNullOrEmpty(remoteDirPath))
             {
                 AppSettings.Instance.RSProfileDir = remoteDirPath;
-                Globals.Log("User Profile Directory changed to: " + remoteDirPath);
+                SMLog.Log("User Profile Directory changed to: " + remoteDirPath);
             }
 
             return remoteDirPath;
@@ -171,13 +171,13 @@ namespace CustomsForgeSongManager.LocalTools
                         frmBackups.Show();
                     }
                     else
-                        Globals.Log("<Error>: No Profile Backups Found ...");
+                        SMLog.Log("<Error>: No Profile Backups Found ...");
                 }
             }
             catch (Exception ex)
             {
-                Globals.Log("<Error>: " + ex.Message);
-                Globals.Log(" - Right mouse click the 'User Profiles' button to reset the path ...");
+                SMLog.Log("<Error>: " + ex.Message);
+                SMLog.Log(" - Right mouse click the 'User Profiles' button to reset the path ...");
             }
         }
 
@@ -194,26 +194,26 @@ namespace CustomsForgeSongManager.LocalTools
             if (Directory.Exists(remoteDirPath))
             {
                 if (File.Exists(backupPath))
-                    Globals.Log(" - Official User Profile Backup already exists ...");
+                    SMLog.Log(" - Official User Profile Backup already exists ...");
                 else
                 {
                     var vdfFile = Directory.EnumerateFiles(remoteDirPath, "remotecache.vdf", SearchOption.AllDirectories).ToList();
                     if (!vdfFile.Any())
-                        Globals.Log("<WARNING> Did not find remotecache.vdf file ...");
+                        SMLog.Log("<WARNING> Did not find remotecache.vdf file ...");
 
                     if (ZipUtilities.ZipDirectory(remoteDirPath, backupPath, preserveRoot: true))
                     {
-                        Globals.Log(" - Successfully Created Official User Profile Backup ...");
-                        Globals.Log(" - From: " + remoteDirPath);
-                        Globals.Log(" - To: " + backupPath);
+                        SMLog.Log(" - Successfully Created Official User Profile Backup ...");
+                        SMLog.Log(" - From: " + remoteDirPath);
+                        SMLog.Log(" - To: " + backupPath);
                     }
                     else
-                        Globals.Log(" - <ERROR> Backup FAILED ...");
+                        SMLog.Log(" - <ERROR> Backup FAILED ...");
                 }
             }
             else
             {
-                Globals.Log(" - Detected Unofficial User Profile Path ...");
+                SMLog.Log(" - Detected Unofficial User Profile Path ...");
                 // simple backup of unofficial profile path (missing 221680 directory) internally checks if backup already exists
                 FileTools.CreateBackupOfType(remoteDirPath, Constants.ProfileBackupsFolder, Constants.EXT_BAK);
             }
@@ -225,7 +225,7 @@ namespace CustomsForgeSongManager.LocalTools
             if (DialogResult.Cancel == MessageBox.Show("Existing files will be overwritten.  Do you may want" + Environment.NewLine + "to make a backup of the corrupt files before proceeding.  " + Environment.NewLine + "Are you sure you want to restore the profile backup?", Constants.ApplicationName, MessageBoxButtons.OKCancel, MessageBoxIcon.Hand))
                 return;
 
-            Globals.Log("Restore user profile ...");
+            SMLog.Log("Restore user profile ...");
 
             // restore 221680 folder/subfolders which includes important remotecache.vdf
             if (steamProfileDir.Contains("221680\\remote")) // official steam dir
@@ -233,12 +233,12 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (ZipUtilities.UnzipDir(backupPath, steamProfileDir))
             {
-                Globals.Log("From: " + backupPath);
-                Globals.Log("To: " + steamProfileDir);
-                Globals.Log("User profile restore ... SUCCESSFUL");
+                SMLog.Log("From: " + backupPath);
+                SMLog.Log("To: " + steamProfileDir);
+                SMLog.Log("User profile restore ... SUCCESSFUL");
             }
             else
-                Globals.Log("User profile restore ... FAILED");
+                SMLog.Log("User profile restore ... FAILED");
         }
 
         public static List<ProfileData> GetProfileBackupsList()
@@ -293,7 +293,7 @@ namespace CustomsForgeSongManager.LocalTools
                 var profilePath = ofd.FileName;
                 var remoteDirPath = Path.GetDirectoryName(profilePath);
                 AppSettings.Instance.RSProfileDir = remoteDirPath;
-                Globals.Log("User Profile Directory changed to: " + remoteDirPath);
+                SMLog.Log("User Profile Directory changed to: " + remoteDirPath);
                 AppSettings.Instance.RSProfilePath = profilePath;
 
                 return profilePath;

@@ -101,7 +101,7 @@ namespace CustomsForgeSongManager.UControls
 
         public void PopulateRenamer()
         {
-            Globals.Log("Populating Renamer GUI ...");
+            SMLog.Log("Populating Renamer GUI ...");
             try
             {
                 Assembly assembly = Assembly.GetExecutingAssembly();
@@ -114,11 +114,11 @@ namespace CustomsForgeSongManager.UControls
                     dgvRenamer.AutoGenerateColumns = true;
                     dgvRenamer.DataSource = renamerPropertyDataSet.Tables[0];
                 }
-                Globals.Log("Loaded renamer_properties.json template ...");
+                SMLog.Log("Loaded renamer_properties.json template ...");
             }
             catch (Exception e)
             {
-                Globals.Log(e.Message);
+                SMLog.Log(e.Message);
             }
         }
 
@@ -135,8 +135,8 @@ namespace CustomsForgeSongManager.UControls
                 try
                 {
                     File.Move(oldFilePath, newFilePath);
-                    Globals.Log(String.Format("Renaming From: {0}", oldFilePath));
-                    Globals.Log("To: " + newFilePath);
+                    SMLog.Log(String.Format("Renaming From: {0}", oldFilePath));
+                    SMLog.Log("To: " + newFilePath);
                     data.FilePath = newFilePath;
 
                     if (chkDeleteEmptyDir.Checked)
@@ -145,10 +145,10 @@ namespace CustomsForgeSongManager.UControls
                 catch (Exception e)
                 {
                     if (e.Message.ToLower().Contains("cannot create a file"))
-                        Globals.Log("Use the Duplicates tabmenu to delete/move" + Environment.NewLine +
+                        SMLog.Log("Use the Duplicates tabmenu to delete/move" + Environment.NewLine +
                             Path.GetFileName(newFilePath) + "duplicates before attempting to use Renamer.");
 
-                    Globals.Log(String.Format("<ERROR> {0}", e.Message));
+                    SMLog.Log(String.Format("<ERROR> {0}", e.Message));
                 }
             }
         }
@@ -158,11 +158,11 @@ namespace CustomsForgeSongManager.UControls
             SongData sd = null;
             List<SongData> List = renSongList.Count > 0 ? renSongList : Globals.MasterCollection.ToList();
             if (List.Count == 0)
-                Globals.Log("No songs found for rename preview.");
+                SMLog.Log("No songs found for rename preview.");
             int x = Globals.random.Next(List.Count() - 1);
             sd = List[x];
             if (sd != null)
-                Globals.Log(String.Format("Renamer preview : {0}", GetNewSongName(sd)));
+                SMLog.Log(String.Format("Renamer preview : {0}", GetNewSongName(sd)));
         }
 
         public void UpdateToolStrip()

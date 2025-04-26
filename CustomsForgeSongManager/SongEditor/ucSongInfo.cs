@@ -8,6 +8,7 @@ using RocksmithToolkitLib.Extensions;
 using RocksmithToolkitLib.Sng;
 using RocksmithToolkitLib.XmlRepository;
 using System.Text.RegularExpressions;
+using CustomsForgeSongManager.LocalTools;
 
 namespace CustomsForgeSongManager.SongEditor
 {
@@ -273,7 +274,7 @@ namespace CustomsForgeSongManager.SongEditor
             {
                 txtNote.Text = text;
                 txtNote.SelectionStart = position - 1;
-                Globals.Log(" - <WARNING> System reserved charaters ':[]' may not be used in user note ...");
+                SMLog.Log(" - <WARNING> System reserved charaters ':[]' may not be used in user note ...");
             }
         }
 

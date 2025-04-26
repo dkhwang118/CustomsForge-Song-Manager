@@ -39,7 +39,7 @@ namespace CustomsForgeSongManager.SongEditor
                 if (String.IsNullOrEmpty(songPath))
                     return;
 
-                Globals.Log("Loading song information from: " + Path.GetFileName(songPath));
+                SMLog.Log("Loading song information from: " + Path.GetFileName(songPath));
                 Cursor.Current = Cursors.WaitCursor;
                 Globals.TsProgressBar_Main.Value = 10;
 
@@ -55,13 +55,13 @@ namespace CustomsForgeSongManager.SongEditor
                 LoadSongInfo();
                 Globals.TsProgressBar_Main.Value = 100;
                 Cursor.Current = Cursors.Default;
-                Globals.Log("Song information loaded ... ");
+                SMLog.Log("Song information loaded ... ");
 
             }
             catch (InvalidDataException ex)
             {
-                Globals.Log("Unable to edit: " + Path.GetFileName(songPath) + " !");
-                Globals.Log("Error: " + ex.Message.ToString().Replace(Environment.NewLine, " - "));
+                SMLog.Log("Unable to edit: " + Path.GetFileName(songPath) + " !");
+                SMLog.Log("Error: " + ex.Message.ToString().Replace(Environment.NewLine, " - "));
 
                 Load += (s, e) => Close();
 
@@ -82,7 +82,7 @@ namespace CustomsForgeSongManager.SongEditor
             if (editorControls.Where(ec => ec.HaltOnError).Any())
                 return;
 
-            Globals.Log("Saving song information to: " + Path.GetFileName(destPath));
+            SMLog.Log("Saving song information to: " + Path.GetFileName(destPath));
             Cursor.Current = Cursors.WaitCursor;
             tsProgressBar.Value = 30;
             tsMsg.Text = "Working ...";
@@ -190,7 +190,7 @@ namespace CustomsForgeSongManager.SongEditor
                     }
                 }
 
-                Globals.Log("Song information saved ... ");
+                SMLog.Log("Song information saved ... ");
                 tsProgressBar.Value = 100;
                 tsMsg.Text = "Done ...";
             }

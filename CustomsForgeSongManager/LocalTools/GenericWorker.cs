@@ -98,7 +98,7 @@ namespace CustomsForgeSongManager.LocalTools
                 // bWorker.Abort(); // don't use abort
                 bWorker.Dispose();
                 bWorker = null;
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
                 Globals.TsLabel_StatusMsg.Text = "";
                 Globals.WorkerFinished = Globals.Tristate.Cancelled;
@@ -107,7 +107,7 @@ namespace CustomsForgeSongManager.LocalTools
             {
                 WorkerProgress(100);
                 counterStopwatch.Stop();
-                Globals.Log(String.Format("Finished " + WorkDescription.ToLower() + " took: {0}", counterStopwatch.Elapsed));
+                SMLog.Log(String.Format("Finished " + WorkDescription.ToLower() + " took: {0}", counterStopwatch.Elapsed));
                 Globals.WorkerFinished = Globals.Tristate.True;
             }
 
@@ -156,7 +156,7 @@ namespace CustomsForgeSongManager.LocalTools
 
                         if (songsSubLists[ndxLocal]?.Count > 0)
                         {
-                            Globals.Log("Starting multi-thread task in core (" + ndxLocal + ") ...");
+                            SMLog.Log("Starting multi-thread task in core (" + ndxLocal + ") ...");
 
                             tasks[ndx] = Task.Factory.StartNew(() =>
                             {
@@ -174,11 +174,11 @@ namespace CustomsForgeSongManager.LocalTools
                                 var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total"); // , "MyComputer"
                                 cpuCounter.NextValue();
                                 Thread.Sleep(1000);
-                                Globals.Log("CPU usage for core (" + ndxLocal + "): " + (int)cpuCounter.NextValue() + "% ...");
+                                SMLog.Log("CPU usage for core (" + ndxLocal + "): " + (int)cpuCounter.NextValue() + "% ...");
                             }
                             catch
                             {
-                                Globals.Log("<WARNING> CPU usage for core (" + ndxLocal + ") is not available ...");
+                                SMLog.Log("<WARNING> CPU usage for core (" + ndxLocal + ") is not available ...");
                             }
                         }
                     }
@@ -191,7 +191,7 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 else // fallback for single core processor
                 {
-                    Globals.Log("Using single thread rescan method ...");
+                    SMLog.Log("Using single thread rescan method ...");
                     workerResults = RepairTools.RepairSongs(WorkParm1, WorkParm2).ToString();
                 }
 

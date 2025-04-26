@@ -19,6 +19,7 @@ using DataGridViewTools;
 using SevenZip;
 using RocksmithToolkitLib.XmlRepository;
 using RocksmithToolkitLib.PSARC;
+using CustomsForgeSongManager.LocalTools;
 
 namespace CustomsForgeSongManager.UControls
 {
@@ -182,7 +183,7 @@ namespace CustomsForgeSongManager.UControls
 
             try
             {
-                Globals.Log("Making backup copy of: " + sourcePath);
+                SMLog.Log("Making backup copy of: " + sourcePath);
                 File.Copy(sourcePath, backupPath, true);
             }
             catch (Exception ex)
@@ -276,7 +277,7 @@ namespace CustomsForgeSongManager.UControls
                     return true;
             }
 
-            Globals.Log("<ERROR> Extracting song cache ...");
+            SMLog.Log("<ERROR> Extracting song cache ...");
             MessageBox.Show("<ERROR> Extracting song cache ... FAILED", "Extraction Failed", MessageBoxButtons.OK, MessageBoxIcon.Stop);
             return false;
         }
@@ -341,7 +342,7 @@ namespace CustomsForgeSongManager.UControls
                 {
                     var cpEnabled = customPackPsarcPath.Replace(Constants.DisabledExtension, Constants.EnabledExtension);
                     File.Move(customPackPsarcPath, cpEnabled);
-                    Globals.Log("Renamed " + customPackPsarcPath + " to " + cpEnabled + " ...");
+                    SMLog.Log("Renamed " + customPackPsarcPath + " to " + cpEnabled + " ...");
                     Globals.ReloadSongManager = true;
                     Globals.ReloadSetlistManager = true;
                     customPackPsarcPath = cpEnabled;
@@ -384,7 +385,7 @@ namespace CustomsForgeSongManager.UControls
             if (CustomSongCollection.Count > 0)
                 LoadSongPackList(CustomSongCollection, CustomDisabledSongCollection);
             else
-                Globals.Log("Error: No songs found in: " + txtFileName.Text + " ...");
+                SMLog.Log("Error: No songs found in: " + txtFileName.Text + " ...");
         }
 
         private void LoadFilteredBindingList(dynamic list)
@@ -416,7 +417,7 @@ namespace CustomsForgeSongManager.UControls
 
         private void PopulateDataGridView()
         {
-            Globals.Log("Populating Song Packs GUI ...");
+            SMLog.Log("Populating Song Packs GUI ...");
             DgvExtensions.DoubleBuffered(dgvSongPacks);
             RefreshDgvSongs();
             CFSMTheme.InitializeDgvAppearance(dgvSongPacks);
@@ -487,7 +488,7 @@ namespace CustomsForgeSongManager.UControls
         private void PopulateSongPacks()
         {
             Globals.TsProgressBar_Main.Value = 0;
-            Globals.Log("Populating Song Packs GUI ...");
+            SMLog.Log("Populating Song Packs GUI ...");
             Globals.Settings.LoadSettingsFromFile(dgvSongPacks);
             Globals.TuningXml = TuningDefinitionRepository.Instance.LoadTuningDefinitions(GameVersion.RS2014);
             var rsDir = AppSettings.Instance.RSInstalledDir;
@@ -502,15 +503,15 @@ namespace CustomsForgeSongManager.UControls
                     if (PopulateSongLists())
                         PopulateDataGridView();
                     else
-                        Globals.Log("<ERROR> PopulateSongLists ... FAILED");
+                        SMLog.Log("<ERROR> PopulateSongLists ... FAILED");
                 else
-                    Globals.Log("<ERROR> SmartSongLoader ... FAILED");
+                    SMLog.Log("<ERROR> SmartSongLoader ... FAILED");
             }
             else
             {
                 Globals.ReloadSongPacks = true;
-                Globals.Log("<ERROR> Method PopulateSongPacks ... FAILED");
-                Globals.Log("Could not find Rocksmith Installation Directory");
+                SMLog.Log("<ERROR> Method PopulateSongPacks ... FAILED");
+                SMLog.Log("Could not find Rocksmith Installation Directory");
             }
 
             // free up memory
@@ -541,7 +542,7 @@ namespace CustomsForgeSongManager.UControls
                     if (File.Exists(Path.Combine(songPackDir, songPackFileDisabled)))
                     {
                         File.Move(Path.Combine(songPackDir, songPackFileDisabled), Path.Combine(songPackDir, songPackFileEnabled));
-                        Globals.Log("Renamed " + songPackFileDisabled + " to " + songPackFileEnabled + " ...");
+                        SMLog.Log("Renamed " + songPackFileDisabled + " to " + songPackFileEnabled + " ...");
                         Globals.ReloadSongManager = true;
                         Globals.ReloadSetlistManager = true;
                     }
@@ -557,7 +558,7 @@ namespace CustomsForgeSongManager.UControls
                     if (File.Exists(Path.Combine(songPackDir, songPackFileDisabled)))
                     {
                         File.Move(Path.Combine(songPackDir, songPackFileDisabled), Path.Combine(songPackDir, songPackFileEnabled));
-                        Globals.Log("Renamed " + songPackFileDisabled + " to " + songPackFileEnabled + " ...");
+                        SMLog.Log("Renamed " + songPackFileDisabled + " to " + songPackFileEnabled + " ...");
                         Globals.ReloadSongManager = true;
                         Globals.ReloadSetlistManager = true;
                     }
@@ -596,7 +597,7 @@ namespace CustomsForgeSongManager.UControls
                 if (!Directory.Exists(Constants.CachePcPath))
                     throw new IOException();
 
-                Globals.Log("Repackaging cache.psarc with your song selections ...");
+                SMLog.Log("Repackaging cache.psarc with your song selections ...");
                 if (!File.Exists(Path.Combine(Constants.CachePcPath, "sltsv1_aggregategraph.nt")))
                     GenExtensions.ExtractEmbeddedResource(Constants.CachePcPath, Assembly.GetExecutingAssembly(), "CustomsForgeSongManager.Resources", new string[] { "sltsv1_aggregategraph.nt" });
 
@@ -612,7 +613,7 @@ namespace CustomsForgeSongManager.UControls
         private void RestoreOriginalSongBackups()
         {
             Cursor = Cursors.WaitCursor;
-            Globals.Log("Restoring Original Backup Files ...");
+            SMLog.Log("Restoring Original Backup Files ...");
             Globals.TsProgressBar_Main.Value = 0;
             try
             {
@@ -626,7 +627,7 @@ namespace CustomsForgeSongManager.UControls
 
                     File.Copy(Constants.Rs1DiscPsarcBackupPath, Constants.Rs1DiscPsarcPath, true);
                     File.SetAttributes(Constants.Rs1DiscPsarcPath, FileAttributes.Normal);
-                    Globals.Log("rs1compatibilitydisc" + Constants.EnabledExtension + " backup restored ...");
+                    SMLog.Log("rs1compatibilitydisc" + Constants.EnabledExtension + " backup restored ...");
                 }
 
                 if (File.Exists(Constants.Rs1DlcPsarcBackupPath))
@@ -639,7 +640,7 @@ namespace CustomsForgeSongManager.UControls
 
                     File.Copy(Constants.Rs1DlcPsarcBackupPath, Constants.Rs1DlcPsarcPath, true);
                     File.SetAttributes(Constants.Rs1DlcPsarcPath, FileAttributes.Normal);
-                    Globals.Log("rs1compatibilitydlc" + Constants.EnabledExtension + " backup restored ...");
+                    SMLog.Log("rs1compatibilitydlc" + Constants.EnabledExtension + " backup restored ...");
                 }
 
                 if (File.Exists(Constants.CachePsarcBackupPath))
@@ -647,18 +648,18 @@ namespace CustomsForgeSongManager.UControls
                     Globals.TsProgressBar_Main.Value = 60;
                     File.Copy(Constants.CachePsarcBackupPath, Constants.CachePsarcPath, true);
                     File.SetAttributes(Constants.CachePsarcPath, FileAttributes.Normal);
-                    Globals.Log("cache.psarc backup restored ...");
+                    SMLog.Log("cache.psarc backup restored ...");
                 }
 
                 if (Directory.Exists(Constants.SongPacksFolder))
                 {
                     Globals.TsProgressBar_Main.Value = 80;
                     ZipUtilities.DeleteDirectory(Constants.SongPacksFolder);
-                    Globals.Log("Removed: " + Constants.SongPacksFolder + " ...");
+                    SMLog.Log("Removed: " + Constants.SongPacksFolder + " ...");
                 }
 
                 Globals.TsProgressBar_Main.Value = 100;
-                Globals.Log("Restored to original condition ... SUCCESSFUL");
+                SMLog.Log("Restored to original condition ... SUCCESSFUL");
             }
             catch (IOException ex)
             {
@@ -787,7 +788,7 @@ namespace CustomsForgeSongManager.UControls
 
         private bool SmartSongLoader()
         {
-            Globals.Log("Smart Song Pack Loader Working ... ");
+            SMLog.Log("Smart Song Pack Loader Working ... ");
             ClearCollections();
             // SAFETY FIRST - make sure a backup of the original cache.psarc exists
             if (!File.Exists(Path.Combine(AppSettings.Instance.RSInstalledDir, Path.ChangeExtension(Path.GetFileName(Constants.CachePsarcPath), ".org.psarc"))) || !File.Exists(Constants.ExtractedSongsHsanPath))
@@ -986,12 +987,12 @@ namespace CustomsForgeSongManager.UControls
             RestoreOriginalSongBackups();
             PopulateSongPacks();
             ToggleUI(true);
-            Globals.Log("Restored Song Pack Original Backups ...");
+            SMLog.Log("Restored Song Pack Original Backups ...");
         }
 
         private void btnSaveSongs_Click(object sender, EventArgs e)
         {
-            Globals.Log("Saving " + cmbSongPacks.Text + " ...");
+            SMLog.Log("Saving " + cmbSongPacks.Text + " ...");
             Globals.TsProgressBar_Main.Value = 0;
             Cursor = Cursors.WaitCursor;
             ToggleUI(false);
@@ -1065,7 +1066,7 @@ namespace CustomsForgeSongManager.UControls
                 if (File.Exists(Path.Combine(songPackDir, songPackFileEnabled)))
                 {
                     File.Move(Path.Combine(songPackDir, songPackFileEnabled), Path.Combine(songPackDir, songPackFileDisabled));
-                    Globals.Log("Renamed " + songPackFileEnabled + " to " + songPackFileDisabled + " ...");
+                    SMLog.Log("Renamed " + songPackFileEnabled + " to " + songPackFileDisabled + " ...");
                     Globals.ReloadSetlistManager = true;
                     Globals.ReloadSongManager = true;
                 }
@@ -1075,7 +1076,7 @@ namespace CustomsForgeSongManager.UControls
                 if (File.Exists(Path.Combine(songPackDir, songPackFileDisabled)))
                 {
                     File.Move(Path.Combine(songPackDir, songPackFileDisabled), Path.Combine(songPackDir, songPackFileEnabled));
-                    Globals.Log("Renamed " + songPackFileDisabled + " to " + songPackFileEnabled + " ...");
+                    SMLog.Log("Renamed " + songPackFileDisabled + " to " + songPackFileEnabled + " ...");
                     Globals.ReloadSetlistManager = true;
                     Globals.ReloadSongManager = true;
                 }
@@ -1083,7 +1084,7 @@ namespace CustomsForgeSongManager.UControls
 
             Globals.ReloadSongManager = true;
             Globals.TsProgressBar_Main.Value = 100;
-            Globals.Log("Songpack repackaging was sucessful...");
+            SMLog.Log("Songpack repackaging was sucessful...");
             ToggleUI(true);
             Cursor = Cursors.Default;
         }
@@ -1270,7 +1271,7 @@ namespace CustomsForgeSongManager.UControls
             InitializeSongPacksCombo();
             PopulateSongPacks();
             ToggleUI(true);
-            Globals.Log("GUI Refreshed ...");
+            SMLog.Log("GUI Refreshed ...");
         }
 
         private void lnkSelectAll_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1302,7 +1303,7 @@ namespace CustomsForgeSongManager.UControls
             Globals.DgvCurrent = dgvSongPacks;
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             statusSongPacks.RestoreSorting(Globals.DgvCurrent);
-            Globals.Log("SongPacks GUI Activated ...");
+            SMLog.Log("SongPacks GUI Activated ...");
         }
 
         public void TabLeave()
@@ -1312,7 +1313,7 @@ namespace CustomsForgeSongManager.UControls
             if (songPackSongs.Any())
                 Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
 
-            Globals.Log("SongPacks GUI Deactivated ...");
+            SMLog.Log("SongPacks GUI Deactivated ...");
         }
 
         private void ToggleControls(Control container, bool enable)

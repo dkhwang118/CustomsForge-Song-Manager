@@ -696,6 +696,9 @@ namespace CustomsForgeSongManager.UControls
         private Label lblDgvColumns;
         private Button btnSettingsSave;
         private Label lblSettingsRSDir;
+        /// <summary>
+        /// Rocksmith Install Directory TextBox
+        /// </summary>
         private CueTextBox cueRsDir;
         public CheckBox chkIncludeRS1CompSongs;
         private CheckBox chkCleanOnClosing;

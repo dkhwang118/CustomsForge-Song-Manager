@@ -32,6 +32,8 @@ using Newtonsoft.Json.Linq;
 using RocksmithToolkitLib;
 using System.Globalization;
 using CustomsForgeSongManager.Controllers;
+using static CustomsForgeSongManager.Forms.frmMain;
+
 
 // TODO: convert SongManager, Duplicates, SetlistManager to use a common bound FilterBindingList<SongData>() dataset.
 // TODO: use binding source filtering to show/hide data
@@ -81,9 +83,12 @@ namespace CustomsForgeSongManager.UControls
         /// </summary>
         private frmMain _mainWindow = null;
 
-        public SongManager(frmMain mainWindow)
+        public SongManager(frmMain mainWindow, PlayCall playSongFunc, DockStyle dockStyle,
+                            Point controlLocation, Size controlSize)
         {
             InitializeComponent();
+
+            // Set the default values for child controls
             // TODO: fix custom control ToolStripNumUpDown.cs
             // hard coded these because a NumericUpDown Control bug keeps deleting settings in VS IDE
             this.tsmiAddDDNumericUpDown.Text = "Phrase Length";
@@ -122,6 +127,13 @@ namespace CustomsForgeSongManager.UControls
             tsmiTargetLUFS.Minimum = (decimal)-30.0;
             //
             dgvSongsDetail.Visible = false;
+            //
+            this.PlaySongFunction = playSongFunc;
+            this.Dock = dockStyle;
+            this.Location = controlLocation;
+            this.Size = controlSize;
+
+
 
             // TODO: future get Ignition based API data
             cmsCheckForUpdate.Visible = GeneralExtension.IsInDesignMode ? true : false;
@@ -129,7 +141,7 @@ namespace CustomsForgeSongManager.UControls
             cmsOpenSongPage.Visible = GeneralExtension.IsInDesignMode ? true : false;
             toolStripSeparator11.Visible = GeneralExtension.IsInDesignMode ? true : false;
 
-
+            
 
             // Instantiate the controller for this view and give it this Control's reference
             SongManagerController.Instance.SetSongManagerControl(this);
@@ -191,7 +203,7 @@ namespace CustomsForgeSongManager.UControls
             {
                 if (song.FileName.ToLower().EndsWith(Constants.BASESONGS) || song.FileName.ToLower().EndsWith(Constants.BASESONGSDISABLED) || song.FileName.ToLower().Contains(Constants.RS1COMP) || song.FileName.ToLower().Contains(Constants.SONGPACK) || song.FileName.ToLower().Contains(Constants.ABVSONGPACK))
                 {
-                    Globals.Log("<WARNING> Audio from SongPacks is not available for playback ...");
+                    SMLog.Log("<WARNING> Audio from SongPacks is not available for playback ...");
                     return;
                 }
 
@@ -225,7 +237,7 @@ namespace CustomsForgeSongManager.UControls
                     //extract the audio...
                     if (!PsarcBrowser.ExtractAudio(song.FilePath, fullname, ""))
                     {
-                        Globals.Log(Properties.Resources.CouldNotExtractTheAudio);
+                        SMLog.Log(Properties.Resources.CouldNotExtractTheAudio);
                         song.AudioCache = String.Empty;
                         return;
                     }
@@ -243,16 +255,16 @@ namespace CustomsForgeSongManager.UControls
                     //Globals.AudioEngine.SetVolume(1.0f - sng.SongVolume);
 
                     Globals.AudioEngine.Play();
-                    Globals.Log(String.Format("Playing {0} by {1} ... ({2})", song.Title.Trim(), song.Artist.Trim(), Path.GetFileName(song.FilePath)));
+                    SMLog.Log(String.Format("Playing {0} by {1} ... ({2})", song.Title.Trim(), song.Artist.Trim(), Path.GetFileName(song.FilePath)));
                 }
                 else
-                    Globals.Log("Unable to open audio file.");
+                    SMLog.Log("Unable to open audio file.");
             }
         }
 
         public void PopulateSongManager()
         {
-            Globals.Log("Populating SongManager GUI ...");
+            SMLog.Log("Populating SongManager GUI ...");
             // Hide main dgvSongsMaster until load completes
             dgvSongsMaster.Visible = false;
 
@@ -307,7 +319,7 @@ namespace CustomsForgeSongManager.UControls
             }
 
             dom.Save(Constants.SongsInfoPath);
-            Globals.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
+            SMLog.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
         }
 
         /// <summary>
@@ -396,8 +408,8 @@ namespace CustomsForgeSongManager.UControls
             }
             catch (Exception ex)
             {
-                Globals.Log("<ERROR> Save Search caused exception ...");
-                Globals.Log("<ERROR> Saved Search: " + ex.Message);
+                SMLog.Log("<ERROR> Save Search caused exception ...");
+                SMLog.Log("<ERROR> Saved Search: " + ex.Message);
                 ClearSearch();
             }
 
@@ -618,7 +630,7 @@ namespace CustomsForgeSongManager.UControls
                 {
                     XmlDocument dom = new XmlDocument();
                     dom.Load(Constants.SongsInfoPath);
-                    Globals.Log("Loaded File: " + Path.GetFileName(Constants.SongsInfoPath));
+                    SMLog.Log("Loaded File: " + Path.GetFileName(Constants.SongsInfoPath));
 
                     // remove version info node
                     var listNode = dom["ArrayOfSongData"];
@@ -645,7 +657,7 @@ namespace CustomsForgeSongManager.UControls
                 // smart scan
                 if (correctVersion && !AppSettings.Instance.FirstRun)
                 {
-                    Globals.Log("Performing quick rescan of song collection ...");
+                    SMLog.Log("Performing quick rescan of song collection ...");
                     Rescan(false);
                 }
                 else
@@ -654,7 +666,7 @@ namespace CustomsForgeSongManager.UControls
                     if (File.Exists(Constants.SongsInfoPath))
                     {
                         hdrMsg = "CFSM New SongData Version ...";
-                        Globals.Log("<WARNING> Incorrect song collection version found ...");
+                        SMLog.Log("<WARNING> Incorrect song collection version found ...");
                     }
 
                     try
@@ -669,7 +681,7 @@ namespace CustomsForgeSongManager.UControls
                     }
                     catch (Exception ex)
                     {
-                        Globals.Log("<ERROR> Cleaning " + Path.GetFileName(Constants.WorkFolder) + " : " + ex.Message);
+                        SMLog.Log("<ERROR> Cleaning " + Path.GetFileName(Constants.WorkFolder) + " : " + ex.Message);
                     }
 
                     // auto show release notes when there are significant or SongData revisions
@@ -686,7 +698,7 @@ namespace CustomsForgeSongManager.UControls
                     // selects Settings tabmenu even if tab order is changed
                     var tabIndex = Globals.MainForm.tcMain.TabPages.IndexOf(Globals.MainForm.tpSettings);
                     Globals.MainForm.tcMain.SelectedIndex = tabIndex;
-                    Globals.Log("Customize CFSM Settings options before returning to Song Manager ...");
+                    SMLog.Log("Customize CFSM Settings options before returning to Song Manager ...");
                 }
 
                 // Rescan calls BackgroundScan/ParseSongs and loads Globals.MasterCollection
@@ -703,7 +715,7 @@ namespace CustomsForgeSongManager.UControls
 
                 if (DialogResult.No == BetterDialog2.ShowDialog(diaMsg, "Delete 'My Documents/CFSM' ...", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
                 {
-                    Globals.Log("User aborted deleting CFSM folder and subfolders from My Documents ...");
+                    SMLog.Log("User aborted deleting CFSM folder and subfolders from My Documents ...");
                     Environment.Exit(0);
                 }
 
@@ -712,8 +724,8 @@ namespace CustomsForgeSongManager.UControls
                     err += ", Inner: " + ex.InnerException.Message;
 
                 // log message needs to written before it is deleted ... Bazinga
-                Globals.Log("<Error>: " + ex.Message);
-                Globals.Log("Deleted CFSM folder and subfolders from My Documents ...");
+                SMLog.Log("<Error>: " + ex.Message);
+                SMLog.Log("Deleted CFSM folder and subfolders from My Documents ...");
 
                 // use the bulldozer
                 ZipUtilities.RemoveReadOnlyAttribute(Constants.WorkFolder);
@@ -839,7 +851,7 @@ namespace CustomsForgeSongManager.UControls
                                 }
                             }
                             else
-                                Globals.Log(String.Format("<Error>: Previewing '{0}' ...", sd.Title));
+                                SMLog.Log(String.Format("<Error>: Previewing '{0}' ...", sd.Title));
                         }
                     }
                 };
@@ -977,7 +989,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (Globals.WorkerFinished == Globals.Tristate.Cancelled)
             {
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 return;
             }
             */
@@ -1258,7 +1270,7 @@ namespace CustomsForgeSongManager.UControls
             catch (Exception)
             {
                 MessageBox.Show(String.Format("Please connect to the internet  {0}to use this feature.", Environment.NewLine), Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Globals.Log("Need to be connected to the internet to use this feature");
+                SMLog.Log("Need to be connected to the internet to use this feature");
             }
         }
 
@@ -1273,7 +1285,7 @@ namespace CustomsForgeSongManager.UControls
                                "other user requested special features and updates.";
 
                 if (DialogResult.Yes == BetterDialog2.ShowDialog(diaMsg, "Donate if you can ...", null, "I'm a donor", "I'll donate", Bitmap.FromHicon(SystemIcons.Warning.Handle), "ReadMe", 0, 150))
-                    Globals.Log(" - Thank you for your support ...");
+                    SMLog.Log(" - Thank you for your support ...");
                 else
                     Process.Start("https://goo.gl/iTPfRU");
 
@@ -1321,10 +1333,10 @@ namespace CustomsForgeSongManager.UControls
             }
 
             if (tsmiModsMyCDLC.Checked && !String.IsNullOrEmpty(AppSettings.Instance.CharterName))
-                Globals.Log("Now showing CDLC for Charter's Name: " + AppSettings.Instance.CharterName);
+                SMLog.Log("Now showing CDLC for Charter's Name: " + AppSettings.Instance.CharterName);
             else
             {
-                Globals.Log("Showing CDLC for all Charters ...");
+                SMLog.Log("Showing CDLC for all Charters ...");
                 tsmiModsMyCDLC.Checked = false;
             }
 
@@ -1355,7 +1367,7 @@ namespace CustomsForgeSongManager.UControls
                     if (bWorker.CancellationPending)
                     {
                         bWorker.Abort();
-                        Globals.Log("<WARNING> User aborted checking for updates on CF ...");
+                        SMLog.Log("<WARNING> User aborted checking for updates on CF ...");
                         break;
                     }
 
@@ -1576,7 +1588,7 @@ namespace CustomsForgeSongManager.UControls
                         sd.IgnitionID = Ignition.GetSongInfoFromURL(sd.GetInfoURL(), "id");
 
                     if (sd.IgnitionID == null || sd.IgnitionID == "No Results")
-                        Globals.Log("<ERROR> Song doesn't exist in Ignition anymore ...");
+                        SMLog.Log("<ERROR> Song doesn't exist in Ignition anymore ...");
                     else
                         Process.Start(String.Format("{0}/{1}", Constants.DefaultDetailsURL, sd.IgnitionID));
                 }
@@ -1791,7 +1803,7 @@ namespace CustomsForgeSongManager.UControls
                     }
                 }
 
-                Globals.Log($"DGV error: {ex.Message}");
+                SMLog.Log($"DGV error: {ex.Message}");
                 return;
             }
 
@@ -1996,7 +2008,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (!bindingCompleted)
             {
-                // Globals.Log("DataBinding Complete ... ");
+                // SMLog.Log("DataBinding Complete ... ");
                 bindingCompleted = true;
             }
 
@@ -2050,7 +2062,7 @@ namespace CustomsForgeSongManager.UControls
                         var song = DgvExtensions.GetObjectFromRow<SongData>(dgvSongsMaster, i);
                         // beyound current scope of CFSM
                         if (song.IsRsCompPack)
-                            Globals.Log(Properties.Resources.CanNotSelectIndividualRS1CompatiblityDLC);
+                            SMLog.Log(Properties.Resources.CanNotSelectIndividualRS1CompatiblityDLC);
                         else
                             song.Selected = !song.Selected;
                     }
@@ -2083,7 +2095,7 @@ namespace CustomsForgeSongManager.UControls
             if (bindingCompleted && !dgvPainted)
             {
                 dgvPainted = true;
-                // Globals.Log("dgvSongsMaster Painted ... ");
+                // SMLog.Log("dgvSongsMaster Painted ... ");
             }
         }
 
@@ -2154,7 +2166,7 @@ namespace CustomsForgeSongManager.UControls
             AppSettings.Instance.SearchString = String.Empty;
             SearchCDLC(cueSearch.Text);
             RemoveFilter();
-            Globals.Log("Cleared Filters and Search ...");
+            SMLog.Log("Cleared Filters and Search ...");
         }
 
         private void lnkLblSelectAll_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -2254,7 +2266,7 @@ namespace CustomsForgeSongManager.UControls
             AppSettings.Instance.RepairOptions.DLFolderMonitor = tsmiDLFolderMonitor.Checked;
 
             RepairTools.DLFolderWatcher(SetRepairOptions());
-            Globals.Log(" - Please donate at https://goo.gl/iTPfRU to support user requested special features like this ...");
+            SMLog.Log(" - Please donate at https://goo.gl/iTPfRU to support user requested special features like this ...");
         }
 
         private void tsmiDLFolderSupport_Click(object sender, EventArgs e)
@@ -2306,8 +2318,8 @@ namespace CustomsForgeSongManager.UControls
                     }
 
                     Globals.OfficialDLCSongList = officialSongs;
-                    Globals.Log("<DEVELOPER> Updated embedded resource and loaded OfficialSongs.json ...");
-                    Globals.Log("<DEVELOPER> Answer 'Yes to All' for any VS IDE popup question about reloading a file ...");
+                    SMLog.Log("<DEVELOPER> Updated embedded resource and loaded OfficialSongs.json ...");
+                    SMLog.Log("<DEVELOPER> Answer 'Yes to All' for any VS IDE popup question about reloading a file ...");
                 }
             }
             else
@@ -2321,12 +2333,12 @@ namespace CustomsForgeSongManager.UControls
 
             var localProfilesPath = Path.Combine(Path.GetDirectoryName(prfldbPath), "localprofiles.json");
             var songListsRoot = UserProfiles.ReadSongListsRoot(prfldbPath);
-            Globals.Log(" - User Profile SongListsRoot Loaded ...");
+            SMLog.Log(" - User Profile SongListsRoot Loaded ...");
             songListsRoot.SongLists[0] = new List<string>() { "Cozy1", "Was", "Here!" };
             UserProfiles.WriteSongListsRoot(songListsRoot, prfldbPath);
-            Globals.Log(" - User Profile SongListsRoot Updated ...");
+            SMLog.Log(" - User Profile SongListsRoot Updated ...");
             var result = UserProfiles.SyncronizeFiles(localProfilesPath, prfldbPath);
-            Globals.Log(" - User Profile Files Syncronized ...");
+            SMLog.Log(" - User Profile Files Syncronized ...");
             return;
 
             Process[] processes = Process.GetProcesses();
@@ -2335,11 +2347,11 @@ namespace CustomsForgeSongManager.UControls
                 try
                 {
                     var processMsg = String.Format("process.ProcessName: {0} <> process.Responding: {1} <> process.HasExited: {2}", process.ProcessName, process.Responding, process.HasExited);
-                    Globals.Log(processMsg);
+                    SMLog.Log(processMsg);
                 }
                 catch (Exception ex)
                 {
-                    Globals.Log("process.ProcessName: " + process.ProcessName + " <> Exception: " + ex.Message);
+                    SMLog.Log("process.ProcessName: " + process.ProcessName + " <> Exception: " + ex.Message);
                 }
             }
             return;
@@ -2718,8 +2730,8 @@ namespace CustomsForgeSongManager.UControls
                 // set minimum default repair option and preserve stats
                 tsmiRepairsMastery.Checked = true;
                 tsmiRepairsPreserveStats.Checked = true;
-                Globals.Log(" - User did not select 'Repairs' option 'Mastery 100% Bug' ...");
-                Globals.Log(" - By default, CFSM will fix the bug and preserve the user stats ...");
+                SMLog.Log(" - User did not select 'Repairs' option 'Mastery 100% Bug' ...");
+                SMLog.Log(" - By default, CFSM will fix the bug and preserve the user stats ...");
             }
 
             // We're done with retrieving the necessary values from the drop down => Hide the drop down menu
@@ -2779,16 +2791,16 @@ namespace CustomsForgeSongManager.UControls
             if (DialogResult.Yes != BetterDialog2.ShowDialog(diaMsg, "Full Rescan", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Question.Handle), "INFO", 0, 150))
                 return;
 
-            Globals.Log("OS Version: " + osMajor);
-            Globals.Log("Processor Speed (MHz): " + processorSpeed);
-            Globals.Log("Processor Cores: " + coreCount);
-            Globals.Log("Songs Count: " + songsCount);
-            Globals.Log("Estimate Parsing Time (secs): " + secsEPT);
+            SMLog.Log("OS Version: " + osMajor);
+            SMLog.Log("Processor Speed (MHz): " + processorSpeed);
+            SMLog.Log("Processor Cores: " + coreCount);
+            SMLog.Log("Songs Count: " + songsCount);
+            SMLog.Log("Estimate Parsing Time (secs): " + secsEPT);
 
             Stopwatch sw = new Stopwatch();
             sw.Restart();
             RefreshDgv(true);
-            Globals.Log("Rescan Parsing Time (secs): " + sw.ElapsedMilliseconds / 1000f);
+            SMLog.Log("Rescan Parsing Time (secs): " + sw.ElapsedMilliseconds / 1000f);
             sw.Stop();
         }
 
@@ -2804,13 +2816,13 @@ namespace CustomsForgeSongManager.UControls
 
         public void TabEnter()
         {
-            var debugMe = Globals.MasterCollection;
+            //var debugMe = Globals.MasterCollection;
             Globals.DgvCurrent = dgvSongsMaster;
             DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.SongManagerFilter;
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             statusSongsMaster.RestoreSorting(Globals.DgvCurrent);
-            Globals.Log("SongManagerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.SongManagerFilter) ? "None" : AppSettings.Instance.SongManagerFilter));
-            Globals.Log("Song Manager GUI Activated ...");
+            SMLog.Log("SongManagerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.SongManagerFilter) ? "None" : AppSettings.Instance.SongManagerFilter));
+            SMLog.Log("Song Manager GUI Activated ...");
         }
 
         public void TabLeave()
@@ -2824,14 +2836,14 @@ namespace CustomsForgeSongManager.UControls
             if (!String.IsNullOrEmpty(DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter) && DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter != AppSettings.Instance.SongManagerFilter)
             {
                 AppSettings.Instance.SongManagerFilter = DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter;
-                Globals.Log("Saved SongManagerFilter: " + AppSettings.Instance.SongManagerFilter);
+                SMLog.Log("Saved SongManagerFilter: " + AppSettings.Instance.SongManagerFilter);
             }
 
             if (Globals.PackageRatingNeedsUpdate && !Globals.UpdateInProgress)
                 PackageDataTools.UpdatePackageRating();
 
             Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-            Globals.Log("Song Manager GUI Deactivated ...");
+            SMLog.Log("Song Manager GUI Deactivated ...");
         }
 
         private void dgvSongsMaster_DataError(object sender, DataGridViewDataErrorEventArgs e)
@@ -2845,7 +2857,7 @@ namespace CustomsForgeSongManager.UControls
             var selection = DgvExtensions.GetObjectsFromRows<SongData>(dgvSongsMaster);
             if (!selection.Any())
             {
-                Globals.Log("Please select at least one song you would like to tag!");
+                SMLog.Log("Please select at least one song you would like to tag!");
                 return;
             }
 
@@ -2942,13 +2954,13 @@ namespace CustomsForgeSongManager.UControls
             if (tsmiCorrectionFactor.DecimalValue == 0)
             {
                 tsmiCorrectionFactor.DecimalValue = (decimal)0.1;
-                Globals.Log("<WARNING> Correction Factor must be non-zero ...");
+                SMLog.Log("<WARNING> Correction Factor must be non-zero ...");
             }
 
             if (tsmiCorrectionMultiplier.DecimalValue == 0)
             {
                 tsmiCorrectionMultiplier.DecimalValue = (decimal)0.1;
-                Globals.Log("<WARNING> Correction Multiplier must be non-zero ...");
+                SMLog.Log("<WARNING> Correction Multiplier must be non-zero ...");
             }
         }
 
@@ -2957,13 +2969,13 @@ namespace CustomsForgeSongManager.UControls
             if (tsmiCorrectionFactor.DecimalValue == 0)
             {
                 tsmiCorrectionFactor.DecimalValue = (decimal)0.1;
-                Globals.Log("<WARNING> Correction Factor must be non-zero ...");
+                SMLog.Log("<WARNING> Correction Factor must be non-zero ...");
             }
 
             if (tsmiCorrectionMultiplier.DecimalValue == 0)
             {
                 tsmiCorrectionMultiplier.DecimalValue = (decimal)0.1;
-                Globals.Log("<WARNING> Correction Multiplier must be non-zero ...");
+                SMLog.Log("<WARNING> Correction Multiplier must be non-zero ...");
             }
         }
 

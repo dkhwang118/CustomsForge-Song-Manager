@@ -13,6 +13,8 @@ using System.Drawing;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Collections.Generic;
+using CustomsForgeSongManager.Forms;
+using DLogNet;
 
 namespace CustomsForgeSongManager.UControls
 {    /// <summary>
@@ -25,11 +27,19 @@ namespace CustomsForgeSongManager.UControls
         private bool isDirty = false;
         private List<ColumnOrderItem> columnOrderList;
 
-        public Settings()
+        private frmMain _parentControl;
+
+        public Settings(frmMain parentControl, Point controlLocation, Size controlSize, DockStyle dockStyle)
         {
             InitializeComponent();
             // save AppSettings.Instance
             Leave += Settings_Leave;
+
+            // set control properties
+            _parentControl = parentControl;
+            this.Location = controlLocation;
+            this.Size = controlSize;
+            this.Dock = dockStyle;
         }
 
         public void LoadSettingsFromFile(DataGridView dgvCurrent = null, bool verbose = false)
@@ -40,6 +50,8 @@ namespace CustomsForgeSongManager.UControls
                 AppSettings.Instance.LoadFromFile(Constants.AppSettingsPath, verbose);
                 var debugMe = AppSettings.Instance.ArrangementAnalyzerFilter;
 
+                // These element values should be set when the tab page is selected
+                // => no need to load them if another process is just trying to load application settings values
                 cueRsDir.Text = AppSettings.Instance.RSInstalledDir;
                 chkIncludeRS1CompSongs.Checked = AppSettings.Instance.IncludeRS1CompSongs;
                 chkIncludeRS2BaseSongs.Checked = AppSettings.Instance.IncludeRS2BaseSongs;
@@ -59,7 +71,7 @@ namespace CustomsForgeSongManager.UControls
                     ValidateD3D();
 
                     if (!AppSettings.Instance.EnableQuarantine)
-                        Globals.Log("<WARNING> 'Auto Quarantine' is disabled ...");
+                        SMLog.Log("<WARNING> 'Auto Quarantine' is disabled ...");
                 }
             }
             catch (Exception ex)
@@ -79,7 +91,7 @@ namespace CustomsForgeSongManager.UControls
                 {
                     AppSettings.Instance.SerializeXml(fs);
                     if (verbose)
-                        Globals.Log("Saved File: " + Path.GetFileName(Constants.AppSettingsPath));
+                        SMLog.Log("Saved File: " + Path.GetFileName(Constants.AppSettingsPath));
                 }
 
                 if (String.IsNullOrEmpty(dgvCurrent.Name)) // || dgvCurrent.RowCount == 0)
@@ -89,11 +101,11 @@ namespace CustomsForgeSongManager.UControls
                     Directory.CreateDirectory(Constants.GridSettingsFolder);
 
                 SerialExtensions.SaveToFile(Constants.GridSettingsPath, RAExtensions.SaveColumnOrder(dgvCurrent));
-                Globals.Log("Saved File: " + Path.GetFileName(Constants.GridSettingsPath));
+                SMLog.Log("Saved File: " + Path.GetFileName(Constants.GridSettingsPath));
             }
             catch (Exception ex)
             {
-                Globals.Log(String.Format("<Error> SaveSettingsToFile: {0}", ex.Message));
+                SMLog.Log(String.Format("<Error> SaveSettingsToFile: {0}", ex.Message));
             }
         }
 
@@ -130,9 +142,9 @@ namespace CustomsForgeSongManager.UControls
             if (!AppSettings.Instance.ValidateD3D || Constants.OnMac)
             {
                 if (Constants.OnMac)
-                    Globals.Log("<MAC MODE> 'Validate D3DX9_42.dll' checkbox is not applicable ...");
+                    SMLog.Log("<MAC MODE> 'Validate D3DX9_42.dll' checkbox is not applicable ...");
                 else
-                    Globals.Log("<WARNING> 'Validate D3DX9_42.dll' checkbox is disabled ...");
+                    SMLog.Log("<WARNING> 'Validate D3DX9_42.dll' checkbox is disabled ...");
 
                 return false;
             }
@@ -148,7 +160,7 @@ namespace CustomsForgeSongManager.UControls
                 var diaMsg = "The 'D3DX9_42.dll' file could not be found. Would you like CFSM to install the dll file that is required to play CDLC files?";
                 if (DialogResult.No == BetterDialog2.ShowDialog(GenExtensions.SplitString(diaMsg, 30), "Validating D3DX9_42.dll ...", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
                 {
-                    Globals.Log("<WARNING> User aborted installing 'D3DX9_42.dll' file ...");
+                    SMLog.Log("<WARNING> User aborted installing 'D3DX9_42.dll' file ...");
                     return false;
                 }
 
@@ -156,13 +168,13 @@ namespace CustomsForgeSongManager.UControls
                 if (File.Exists(luaPath) || File.Exists(steamClientPath))
                 {
                     //GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.old"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                    //Globals.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 ...");
-                    Globals.Log("<WARNING> Legacy 'D3DX9_42.dll' file installation for Rocksmith 2014 is not supported ...");
+                    //SMLog.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 ...");
+                    SMLog.Log("<WARNING> Legacy 'D3DX9_42.dll' file installation for Rocksmith 2014 is not supported ...");
                 }
                 else
                 {
                     GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.new"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                    Globals.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
+                    SMLog.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
                 }
             }
             else
@@ -188,24 +200,24 @@ namespace CustomsForgeSongManager.UControls
 
                     if (DialogResult.No == BetterDialog2.ShowDialog(dlgMsg, "Validating D3DX9_42.dll ...", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
                     {
-                        Globals.Log("<WARNING> User aborted updating the 'D3DX9_42.dll' file ...");
+                        SMLog.Log("<WARNING> User aborted updating the 'D3DX9_42.dll' file ...");
                         return false;
                     }
 
                     if (File.Exists(luaPath) || File.Exists(steamClientPath))
                     {
                         //GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.old"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                        //Globals.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 ...");
-                        Globals.Log("<WARNING> Legacy 'D3DX9_42.dll' file updating for Rocksmith 2014 is not supported ...");
+                        //SMLog.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 ...");
+                        SMLog.Log("<WARNING> Legacy 'D3DX9_42.dll' file updating for Rocksmith 2014 is not supported ...");
                     }
                     else
                     {
                         GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.new"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                        Globals.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
+                        SMLog.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
                     }
                 }
                 else
-                    Globals.Log("Validated existing 'D3DX9_42.dll' file installation ...");
+                    SMLog.Log("Validated existing 'D3DX9_42.dll' file installation ...");
             }
 
             return true;
@@ -238,7 +250,7 @@ namespace CustomsForgeSongManager.UControls
                 SaveSettingsToFile(Globals.DgvCurrent);
             }
 
-            Globals.Log("Validated RS2014 Installation Directory: " + AppSettings.Instance.RSInstalledDir);
+            SMLog.Log("Validated RS2014 Installation Directory: " + AppSettings.Instance.RSInstalledDir);
         }
 
         private void Settings_Leave(object sender, EventArgs e)
@@ -255,18 +267,18 @@ namespace CustomsForgeSongManager.UControls
                 return;
 
             GenExtensions.DeleteFile(AppSettings.Instance.LogFilePath);
-            Globals.MyLog.AddTargetFile(AppSettings.Instance.LogFilePath);
+            SMLog.Logger.AddTargetFile(AppSettings.Instance.LogFilePath);
             GenExtensions.DeleteFile(Constants.RepairsErrorLogPath);
             Globals.TbLog.Clear();
-            Globals.Log("Log files have been emptied ...");
-            Globals.Log("Starting new log ...");
-            Globals.Log(Constants.AppTitle);
+            SMLog.Log("Log files have been emptied ...");
+            SMLog.Log("Starting new log ...");
+            //SMLog.Log(Constants.AppTitle);
         }
 
         private void btnResetDownloads_Click(object sender, EventArgs e)
         {
             AppSettings.Instance.DownloadsDir = String.Empty;
-            Globals.Log("CDLC downloads folder path was reset ...");
+            SMLog.Log("CDLC downloads folder path was reset ...");
         }
 
         private void btnSettingsLoad_Click(object sender, EventArgs e)
@@ -306,7 +318,7 @@ namespace CustomsForgeSongManager.UControls
                     //SerialExtensions.SaveToFile(sfd.FileName, RAExtensions.SaveColumnOrder(Globals.DgvCurrent));
                     SerialExtensions.SaveToFile(sfd.FileName, RAExtensions.SaveColumnOrder(columnOrderList));
                     cueDgvSettingsPath.Text = sfd.FileName;
-                    Globals.Log("Saved Custom Grid Settings XML File: " + sfd.FileName);
+                    SMLog.Log("Saved Custom Grid Settings XML File: " + sfd.FileName);
                 }
             }
         }
@@ -318,12 +330,8 @@ namespace CustomsForgeSongManager.UControls
 
         private void chkEnableNotifications_Click(object sender, EventArgs e)
         {
+            // Change the property value and let listeners handle the event
             AppSettings.Instance.EnableNotifications = chkEnableNotifications.Checked;
-
-            if (chkEnableNotifications.Checked)
-                Globals.MyLog.AddTargetNotifyIcon(Globals.Notifier);
-            else
-                Globals.MyLog.RemoveTargetNotifyIcon(Globals.Notifier);
         }
 
         private void chkEnableQuarantine_Click(object sender, EventArgs e)
@@ -363,7 +371,7 @@ namespace CustomsForgeSongManager.UControls
                     "CFSM will automatically restart!" + Environment.NewLine + Environment.NewLine +
                     "Perform a full rescan on restart if any songs are missing.",
                     "Mac Mode Enabled ...", MessageBoxButtons.OK, MessageBoxIcon.Hand);
-                Globals.Log("Switched to Mac Compatibility Mode ...");
+                SMLog.Log("Switched to Mac Compatibility Mode ...");
             }
             else
             {
@@ -371,7 +379,7 @@ namespace CustomsForgeSongManager.UControls
                     "CFSM will automatically restart!" + Environment.NewLine + Environment.NewLine +
                     "Perform a full rescan on restart if any songs are missing.",
                     "PC Mode Enabled ...", MessageBoxButtons.OK, MessageBoxIcon.Hand);
-                Globals.Log("Switched to PC Compatibility Mode ...");
+                SMLog.Log("Switched to PC Compatibility Mode ...");
             }
 
             GenExtensions.DeleteFile(Constants.SongsInfoPath);
@@ -419,17 +427,17 @@ namespace CustomsForgeSongManager.UControls
 
             // update RSInstalledDir after above error check passes
             AppSettings.Instance.RSInstalledDir = cueRsDir.Text;
-            Globals.Log("Updated RS2014 Installation Directory: " + AppSettings.Instance.RSInstalledDir);
+            SMLog.Log("Updated RS2014 Installation Directory: " + AppSettings.Instance.RSInstalledDir);
 
             if (Constants.OnMac)
             {
-                Globals.Log("<README> Send this entire Log output (copy/paste) to Cozy1 for analysis ...");
-                Globals.Log("AppSettings.Instance.OnMac = " + AppSettings.Instance.MacMode);
-                Globals.Log("AppSettings.Instance.RSInstalledDir = " + AppSettings.Instance.RSInstalledDir);
-                Globals.Log("Application.ExecutablePath = " + Application.ExecutablePath);
-                Globals.Log("Path.GetDirectoryName(Application.ExecutablePath) = " + Path.GetDirectoryName(Application.ExecutablePath));
-                Globals.Log("Constants.ApplicationFolder = " + Constants.ApplicationFolder);
-                Globals.Log("Found 'Application Support' folder: " + Constants.Rs2DlcFolder.Contains("Application Support"));
+                SMLog.Log("<README> Send this entire Log output (copy/paste) to Cozy1 for analysis ...");
+                SMLog.Log("AppSettings.Instance.OnMac = " + AppSettings.Instance.MacMode);
+                SMLog.Log("AppSettings.Instance.RSInstalledDir = " + AppSettings.Instance.RSInstalledDir);
+                SMLog.Log("Application.ExecutablePath = " + Application.ExecutablePath);
+                SMLog.Log("Path.GetDirectoryName(Application.ExecutablePath) = " + Path.GetDirectoryName(Application.ExecutablePath));
+                SMLog.Log("Constants.ApplicationFolder = " + Constants.ApplicationFolder);
+                SMLog.Log("Found 'Application Support' folder: " + Constants.Rs2DlcFolder.Contains("Application Support"));
             }
         }
 
@@ -441,14 +449,14 @@ namespace CustomsForgeSongManager.UControls
         private void btnResetThreading_Click(object sender, EventArgs e)
         {
             AppSettings.Instance.MultiThread = -1;
-            Globals.Log("CFSM multi threading usage was reset ...");
+            SMLog.Log("CFSM multi threading usage was reset ...");
         }
 
         public void PopulateSettings(DataGridView dgvCurrent)
         {
             if (!String.IsNullOrEmpty(dgvCurrent.Name))
             {
-                Globals.Log("Populating Settings GUI for " + dgvCurrent.Name + " ...");
+                SMLog.Log("Populating Settings GUI for " + dgvCurrent.Name + " ...");
                 Globals.DgvCurrent = dgvCurrent;
 
                 // each DataGridView has a tag which holds a friendly name
@@ -462,7 +470,7 @@ namespace CustomsForgeSongManager.UControls
                     Directory.CreateDirectory(Constants.GridSettingsFolder);
 
                 SerialExtensions.SaveToFile(Constants.GridSettingsPath, RAExtensions.SaveColumnOrder(Globals.DgvCurrent));
-                Globals.Log("<WARNING> Did not find file so created new default file: " + Path.GetFileName(Constants.GridSettingsPath));
+                SMLog.Log("<WARNING> Did not find file so created new default file: " + Path.GetFileName(Constants.GridSettingsPath));
             }
 
             LoadDgvColumns(Constants.GridSettingsPath);
@@ -475,7 +483,7 @@ namespace CustomsForgeSongManager.UControls
             try
             {
                 RAExtensions.ManagerGridSettings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(gridSettingsPath);
-                Globals.Log("Loaded File: " + Path.GetFileName(gridSettingsPath));
+                SMLog.Log("Loaded File: " + Path.GetFileName(gridSettingsPath));
 
                 // reset the grid data
                 dgvColumns.DataSource = null;
@@ -501,9 +509,9 @@ namespace CustomsForgeSongManager.UControls
             }
             catch (Exception ex)
             {
-                Globals.Log("<ERROR> GridSettings could not be loaded ...");
-                Globals.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
-                Globals.Log(ex.Message);
+                SMLog.Log("<ERROR> GridSettings could not be loaded ...");
+                SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
+                SMLog.Log(ex.Message);
                 RAExtensions.ManagerGridSettings = null; // reset
             }
         }
@@ -537,7 +545,7 @@ namespace CustomsForgeSongManager.UControls
 
             // reload modified column settings to the actual dgvCurrent
             ((RADataGridView)Globals.DgvCurrent).ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
-            Globals.Log("Reloaded Modified Column Settings: " + Globals.DgvCurrent.Name);
+            SMLog.Log("Reloaded Modified Column Settings: " + Globals.DgvCurrent.Name);
             // autosave Settings
             SaveSettingsToFile(Globals.DgvCurrent);
 
@@ -545,7 +553,7 @@ namespace CustomsForgeSongManager.UControls
             if (!String.IsNullOrEmpty(cueDgvSettingsPath.Text) && cueDgvSettingsPath.Text != Constants.GridSettingsPath)
                 SerialExtensions.SaveToFile(cueDgvSettingsPath.Text, RAExtensions.SaveColumnOrder(columnOrderList));
 
-            Globals.Log("Saved CFSM Settings ... ");
+            SMLog.Log("Saved CFSM Settings ... ");
 
             // force the initial load on FirstRun
             if (AppSettings.Instance.FirstRun)

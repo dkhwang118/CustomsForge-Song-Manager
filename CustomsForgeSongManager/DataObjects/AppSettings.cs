@@ -8,6 +8,8 @@ using CustomsForgeSongManager.LocalTools;
 using GenTools;
 using DataGridViewTools;
 using System.Reflection;
+using CustomsForgeSongManager.DataManager;
+using DLogNet;
 
 namespace CustomsForgeSongManager.DataObjects
 {
@@ -48,7 +50,10 @@ namespace CustomsForgeSongManager.DataObjects
         private bool _protectODLC;
         private bool _includeVocals;
         private bool _oneTime;
-        private bool _firstRun;
+        /// <summary>
+        /// The backing bool for the FirstRun property.
+        /// </summary>
+        private bool _firstRun = true;
         private int _multiThread = -1; // tristate int, 1 use multi, 0 use single, -1 not set
         private DateTime _lastODLCCheckDate;
         private RepairOptions _repairOptions;
@@ -345,17 +350,20 @@ namespace CustomsForgeSongManager.DataObjects
         /// <returns>The Application Settings object with the data read from file.</returns>
         public AppSettings LoadFromFile(string settingsPath, bool verbose = false)
         {
+            // If the given path is not null/empty AND a file exists at that path
             if (!String.IsNullOrEmpty(settingsPath) && File.Exists(settingsPath))
             {
+                // load the settings from the file
                 using (var fs = File.OpenRead(settingsPath))
-                    LoadSettingsFromStream(fs);
+                    loadSettingsFromStream(fs);
 
                 if (verbose)
-                    Globals.Log("Loaded File: " + Path.GetFileName(Constants.AppSettingsPath));
+                    SMLog.Log("Loaded File: " + Path.GetFileName(Constants.AppSettingsPath));
             }
             else
                 RestoreDefaults();
 
+            // If we do not have a current DataGridView, we cannot load the grid settings
             if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
                 return this;
 
@@ -365,27 +373,31 @@ namespace CustomsForgeSongManager.DataObjects
                 try
                 {
                     RAExtensions.ManagerGridSettings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(Constants.GridSettingsPath);
-                    Globals.Log("Loaded File: " + Path.GetFileName(Constants.GridSettingsPath));
+                    SMLog.Log("Loaded File: " + Path.GetFileName(Constants.GridSettingsPath));
                 }
                 catch (Exception ex)
                 {
-                    Globals.Log("<ERROR> GridSettings could not be loaded ...");
-                    Globals.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
-                    Globals.Log(ex.Message);
+                    SMLog.Log("<ERROR> GridSettings could not be loaded ...");
+                    SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
+                    SMLog.Log(ex.Message);
                     RAExtensions.ManagerGridSettings = null; // reset
                 }
             }
             else
             {
                 Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-                //Globals.Log("<WARNING> Did not find file: " + Path.GetFileName(Constants.GridSettingsPath));
+                //SMLog.Log("<WARNING> Did not find file: " + Path.GetFileName(Constants.GridSettingsPath));
                 //RAExtensions.ManagerGridSettings = null; // reset
             }
 
             return this;
         }
 
-        public void LoadSettingsFromStream(Stream stream)
+        /// <summary>
+        /// Loads the application settings from the specified file stream
+        /// </summary>
+        /// <param name="stream"></param>
+        private void loadSettingsFromStream(Stream stream)
         {
             AppSettings x = stream.DeserializeXml<AppSettings>();
             PropertyInfo[] props = GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
@@ -417,6 +429,107 @@ namespace CustomsForgeSongManager.DataObjects
             foreach (PropertyInfo p in props)
             {
                 settings.Add(new Tuple<string,object>(p.Name, p.GetValue(this, emptyObjParams)));
+            }
+
+            return settings;
+        }
+
+        /// <summary>
+        /// Loads the application settings from the specified file.
+        /// </summary>
+        /// <param name="settingsPath">The file path for the settings file.</param>
+        /// <param name="loadSettings">True if the settings are to be loaded into the application after reading them.</param>
+        /// <param name="verbose"></param>
+        /// <returns>The Application Settings object with the data read from file.</returns>
+        public static AppSettings GetSettingsFromFile(string settingsPath, bool loadSettings = false, bool verbose = false)
+        {
+            AppSettings settings = null;
+
+            // If the given path is not null/empty AND a file exists at that path
+            if (!String.IsNullOrEmpty(settingsPath) && File.Exists(settingsPath))
+            {
+                // load the settings from the file
+                using (var stream = File.OpenRead(settingsPath))
+                {
+                    settings = stream.DeserializeXml<AppSettings>();
+                }
+
+                if (verbose)
+                    SMLog.Log("Loaded File: " + Path.GetFileName(Constants.AppSettingsPath));
+            }
+            else
+            {
+                // if the file does not exist, create a new instance of AppSettings with default values
+                settings = new AppSettings();
+                settings.RestoreDefaults();
+            }
+
+            // If we want to load the settings from the file into the current instance
+            if (loadSettings)
+            {
+                // If we currently do not have an instance of AppSettings
+                if (_instance == null)
+                {
+                    // set the current instance of AppSettings to the loaded settings
+                    _instance = settings;
+                }
+                else
+                {
+                    // Copy the settings from the settings object into the current instance
+                    PropertyInfo[] props = settings.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    var emptyObjParams = new object[] { };
+                    foreach (var p in props)
+                    {
+                        if (p.CanRead && p.CanWrite)
+                        {
+                            var ignore = p.GetCustomAttributes(typeof(XmlIgnoreAttribute), true).Length > 0;
+                            if (!ignore)
+                                p.SetValue(_instance, p.GetValue(settings, emptyObjParams), emptyObjParams);
+                        }
+                    }
+                }
+
+                // Load the Rocksmith installation directory into the directory manager
+                DirectoryManager.SetRocksmithInstallationDirectory(settings.RSInstalledDir);
+            }
+
+            return settings;
+        }
+
+        public static RADataGridViewSettings LoadDataGridViewSettingsFromFile(string settingsPath)
+        {
+            RADataGridViewSettings settings = null;
+            //settingsPath = Constants.GridSettingsPath;
+
+            // If we do not have a current DataGridView, we cannot load the grid settings
+            if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
+                return settings;
+
+            // If a file exists at the given path
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    // load the settings from the file
+                    settings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(settingsPath);
+                    RAExtensions.ManagerGridSettings = settings;
+                    SMLog.Log("Loaded File: " + Path.GetFileName(settingsPath));
+                }
+                catch (Exception ex)
+                {
+                    SMLog.Log("<ERROR> GridSettings could not be loaded ...");
+                    SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
+                    SMLog.Log(ex.Message);
+                    RAExtensions.ManagerGridSettings = null; // reset
+                }
+            }
+            else
+            {
+                // if the file does not exist, save the current settings to the file
+                FileTools.SaveDataGridViewSettingsToFile(Globals.DgvCurrent);
+                Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
+                //SMLog.Log("<WARNING> Did not find file: " + Path.GetFileName(Constants.GridSettingsPath));
+                //RAExtensions.ManagerGridSettings = null; // reset
             }
 
             return settings;

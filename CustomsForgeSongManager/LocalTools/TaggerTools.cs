@@ -152,7 +152,7 @@ namespace CustomsForgeSongManager.LocalTools
                             archive.InflateEntry(imgEntry);
                             if (imgEntry.Data == null)
                             {
-                                Globals.Log("<Error>: Inflating image entry ...");
+                                SMLog.Log("<Error>: Inflating image entry ...");
                                 return null;
                             }
 
@@ -372,10 +372,10 @@ namespace CustomsForgeSongManager.LocalTools
                         if (song.Tagged == SongTaggerStatus.True)
                         {
                             UntagSong(song, archive);
-                            Globals.Log("Retagging song: " + song.Title);
+                            SMLog.Log("Retagging song: " + song.Title);
                         }
                         else
-                            Globals.Log("Tagging song: " + song.Title);
+                            SMLog.Log("Tagging song: " + song.Title);
 
                         var taggerOriginal = archive.TOC.FirstOrDefault(entry => entry.Name == "tagger.org");
                         if (taggerOriginal != null)
@@ -389,7 +389,7 @@ namespace CustomsForgeSongManager.LocalTools
                         // do not tag Official DLC songs
                         if (!AllowEditingOfODLC && toolKitEntry == null)
                         {
-                            Globals.Log("CFSM can not be used to tag Official DLC songs.");
+                            SMLog.Log("CFSM can not be used to tag Official DLC songs.");
                             song.Tagged = SongTaggerStatus.ODLC;
                             return;
                         }
@@ -439,7 +439,7 @@ namespace CustomsForgeSongManager.LocalTools
                         song.Tagged = SongTaggerStatus.True;
                     }
 
-                    // Globals.Log("Finished tagging song ...");
+                    // SMLog.Log("Finished tagging song ...");
                 }
                 catch (Exception)
                 {
@@ -450,9 +450,9 @@ namespace CustomsForgeSongManager.LocalTools
 
                     if (isFirstError)
                     {
-                        Globals.Log("<ERROR>: Tagger could not find album artwork ...");
-                        Globals.Log(" - Use the Repairs Mastery 100% Bug option to restore default album artwork ...");
-                        Globals.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
+                        SMLog.Log("<ERROR>: Tagger could not find album artwork ...");
+                        SMLog.Log(" - Use the Repairs Mastery 100% Bug option to restore default album artwork ...");
+                        SMLog.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
                         sbErrors.Insert(0, "File Name, Error Message" + Environment.NewLine);
                         sbErrors.Insert(0, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + Environment.NewLine);
                         isFirstError = false;
@@ -480,7 +480,7 @@ namespace CustomsForgeSongManager.LocalTools
             if (File.Exists(song.FilePath)) //Just to be sure :)
             {
                 if (song.Tagged == SongTaggerStatus.True)
-                    Globals.Log("Untagging song: " + song.Title);
+                    SMLog.Log("Untagging song: " + song.Title);
 
                 var toolKitEntry = archive.TOC.FirstOrDefault(entry => entry.Name == "toolkit.version");
                 var taggerOriginal = archive.TOC.FirstOrDefault(entry => entry.Name == "tagger.org");
@@ -504,7 +504,7 @@ namespace CustomsForgeSongManager.LocalTools
                 }
 
                 song.Tagged = SongTaggerStatus.False;
-                // Globals.Log("Finished untagging song ...");
+                // SMLog.Log("Finished untagging song ...");
             }
         }
 
@@ -541,9 +541,9 @@ namespace CustomsForgeSongManager.LocalTools
             sbErrors = new StringBuilder();
 
             if (!isUnTag)
-                Globals.Log("Tagging selected CDLC files ...");
+                SMLog.Log("Tagging selected CDLC files ...");
             else
-                Globals.Log("Untagging selected CDLC files ...");
+                SMLog.Log("Untagging selected CDLC files ...");
 
             var total = selectedSongs.Count(); // (sd => !sd.IsODLC);
             int processed = 0, failed = 0, skipped = 0;
@@ -629,7 +629,7 @@ namespace CustomsForgeSongManager.LocalTools
 
                 if (removeTag)
                 {
-                    Globals.Log("Removing the custom tag from " + song.Title + " by " + song.Artist);                   
+                    SMLog.Log("Removing the custom tag from " + song.Title + " by " + song.Artist);                   
                     if (asPrefix)
                     {
                         packageData.SongInfo.SongDisplayName = packageData.SongInfo.SongDisplayName.RemovePrefix(customTag).GetValidAtaSpaceName().Trim();
@@ -643,7 +643,7 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 else
                 {
-                    Globals.Log("Adding a custom tag to " + song.Title + " by " + song.Artist);
+                    SMLog.Log("Adding a custom tag to " + song.Title + " by " + song.Artist);
                     if (asPrefix)
                     {
                         packageData.SongInfo.SongDisplayName = (customTag + " " + packageData.SongInfo.SongDisplayName).GetValidAtaSpaceName();
@@ -656,8 +656,8 @@ namespace CustomsForgeSongManager.LocalTools
                     }
                 }
 
-                Globals.Log(" - Repackaging");
-                Globals.Log(" - Please wait this could take a minute ...");
+                SMLog.Log(" - Repackaging");
+                SMLog.Log(" - Please wait this could take a minute ...");
 
                 using (var psarcOut = new PsarcPackager(true))
                     psarcOut.WritePackage(songPath, packageData);
@@ -666,7 +666,7 @@ namespace CustomsForgeSongManager.LocalTools
             }
             catch (Exception e)
             {
-                Globals.Log("Adding custom title tag failed. Error: " + e.Message);
+                SMLog.Log("Adding custom title tag failed. Error: " + e.Message);
                 return false;
             }
         }

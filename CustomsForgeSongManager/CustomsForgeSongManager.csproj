@@ -194,6 +194,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controllers\SongManagerController.cs" />
+    <Compile Include="DataManager\DirectoryManager.cs" />
+    <Compile Include="DataManager\SettingsManager.cs" />
     <Compile Include="DataObjects\AbstractApplicationSetting.cs" />
     <Compile Include="DataObjects\ApplicationSetting.cs" />
     <Compile Include="DataObjects\ArrangementData.cs" />
@@ -281,6 +283,7 @@
     <Compile Include="DataObjects\Globals.cs" />
     <Compile Include="LocalTools\Ignition.cs" />
     <Compile Include="LocalTools\PsarcBrowser.cs" />
+    <Compile Include="LocalTools\SMLog.cs" />
     <Compile Include="LocalTools\TaggerTools.cs" />
     <Compile Include="LocalTools\ThreadSafeDLCPackageCreator.cs" />
     <Compile Include="LocalTools\ThreadSafePsarcPackager.cs" />

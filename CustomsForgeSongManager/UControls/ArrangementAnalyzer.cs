@@ -51,7 +51,7 @@ namespace CustomsForgeSongManager.UControls
 
         public void PopulateArrangementManager()
         {
-            Globals.Log("Populating Arrangements GUI ...");
+            SMLog.Log("Populating Arrangements GUI ...");
             // Hide main dgvArrangements until load completes
             dgvArrangements.Visible = false;
             LoadArrangements();
@@ -103,14 +103,14 @@ namespace CustomsForgeSongManager.UControls
                     //if (dgvArrangements.Rows.Count == 0)
                     //{
                     //    IncludeSubfolders(true); // search killer
-                    //    Globals.Log(" - CFSM cleared a search that returns no songs ...");
+                    //    SMLog.Log(" - CFSM cleared a search that returns no songs ...");
                     //}
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("<ERROR> Saved Search: " + ex.Message);
-                Globals.Log("<ERROR> Save Search caused exception ...");
+                SMLog.Log("<ERROR> Save Search caused exception ...");
                 ClearSearch();
             }
 
@@ -318,7 +318,7 @@ namespace CustomsForgeSongManager.UControls
             }
 
             sw.Stop();
-            Globals.Log(String.Format("Arrangement recursion took: {0} (msec)", sw.ElapsedMilliseconds));
+            SMLog.Log(String.Format("Arrangement recursion took: {0} (msec)", sw.ElapsedMilliseconds));
 
             //sw = null;
             //sw = new Stopwatch();
@@ -347,7 +347,7 @@ namespace CustomsForgeSongManager.UControls
             //}
 
             //sw.Stop();
-            //Globals.Log(String.Format("Arrangement reflection took: {0} (msec)", sw.ElapsedMilliseconds));
+            //SMLog.Log(String.Format("Arrangement reflection took: {0} (msec)", sw.ElapsedMilliseconds));
         }
 
         private void LoadFilteredBindingList(dynamic list)
@@ -469,7 +469,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (Globals.WorkerFinished == Globals.Tristate.Cancelled)
             {
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 return;
             }
 
@@ -700,7 +700,7 @@ namespace CustomsForgeSongManager.UControls
             {
                 // beyound current scope of CFSM
                 if (grid.Rows[e.RowIndex].Cells["colSelect"].Value.ToString().ToLower().Contains(Constants.RS1COMP))
-                    Globals.Log(Properties.Resources.CanNotSelectIndividualRS1CompatiblityDLC);
+                    SMLog.Log(Properties.Resources.CanNotSelectIndividualRS1CompatiblityDLC);
                 else // required to force selected row change
                 {
                     TemporaryDisableDatabindEvent(() => { dgvArrangements.EndEdit(); });
@@ -742,7 +742,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (!bindingCompleted)
             {
-                // Globals.Log("DataBinding Complete ... ");
+                // SMLog.Log("DataBinding Complete ... ");
                 bindingCompleted = true;
             }
 
@@ -795,7 +795,7 @@ namespace CustomsForgeSongManager.UControls
                         var song = DgvExtensions.GetObjectFromRow<ArrangementData>(dgvArrangements, i);
                         // beyound current scope of CFSM
                         if (song.IsRsCompPack)
-                            Globals.Log(Properties.Resources.CanNotSelectIndividualRS1CompatiblityDLC);
+                            SMLog.Log(Properties.Resources.CanNotSelectIndividualRS1CompatiblityDLC);
                         else
                             song.Selected = !song.Selected;
                     }
@@ -828,7 +828,7 @@ namespace CustomsForgeSongManager.UControls
             if (bindingCompleted && !dgvPainted)
             {
                 dgvPainted = true;
-                // Globals.Log("dgvArrangements Painted ... ");
+                // SMLog.Log("dgvArrangements Painted ... ");
             }
         }
 
@@ -876,7 +876,7 @@ namespace CustomsForgeSongManager.UControls
             AppSettings.Instance.SearchString = String.Empty;
             SearchCDLC(cueSearch.Text);
             RemoveFilter();
-            Globals.Log("Cleared Filters and Search ...");
+            SMLog.Log("Cleared Filters and Search ...");
         }
 
         private void lnkLblSelectAll_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -960,16 +960,16 @@ namespace CustomsForgeSongManager.UControls
             if (DialogResult.Yes != BetterDialog2.ShowDialog(diaMsg, "Full Rescan", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Question.Handle), "INFO", 0, 150))
                 return;
 
-            Globals.Log("OS Version: " + osMajor);
-            Globals.Log("Processor Speed (MHz): " + processorSpeed);
-            Globals.Log("Processor Cores: " + coreCount);
-            Globals.Log("Songs Count: " + songsCount);
-            Globals.Log("Estimate Parsing Time (secs): " + secsEPT);
+            SMLog.Log("OS Version: " + osMajor);
+            SMLog.Log("Processor Speed (MHz): " + processorSpeed);
+            SMLog.Log("Processor Cores: " + coreCount);
+            SMLog.Log("Songs Count: " + songsCount);
+            SMLog.Log("Estimate Parsing Time (secs): " + secsEPT);
 
             Stopwatch sw = new Stopwatch();
             sw.Restart();
             RefreshDgv(true);
-            Globals.Log("Rescan Parsing Time (secs): " + sw.ElapsedMilliseconds / 1000f);
+            SMLog.Log("Rescan Parsing Time (secs): " + sw.ElapsedMilliseconds / 1000f);
             sw.Stop();
         }
 
@@ -998,8 +998,8 @@ namespace CustomsForgeSongManager.UControls
             DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.ArrangementAnalyzerFilter;
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             statusArrangementAnalyzer.RestoreSorting(Globals.DgvCurrent); // restore sort order
-            Globals.Log("ArrangementAnalyzerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.ArrangementAnalyzerFilter) ? "None" : AppSettings.Instance.ArrangementAnalyzerFilter));
-            Globals.Log("Arrangements GUI Activated ...");
+            SMLog.Log("ArrangementAnalyzerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.ArrangementAnalyzerFilter) ? "None" : AppSettings.Instance.ArrangementAnalyzerFilter));
+            SMLog.Log("Arrangements GUI Activated ...");
         }
 
         public void TabLeave()
@@ -1031,13 +1031,13 @@ namespace CustomsForgeSongManager.UControls
             if (!String.IsNullOrEmpty(DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter) && DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter != AppSettings.Instance.ArrangementAnalyzerFilter)
             {
                 AppSettings.Instance.ArrangementAnalyzerFilter = DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter;
-                Globals.Log("Saved ArrangementAnalyzerFilter: " + AppSettings.Instance.ArrangementAnalyzerFilter);
+                SMLog.Log("Saved ArrangementAnalyzerFilter: " + AppSettings.Instance.ArrangementAnalyzerFilter);
             }
 
             // FIXME: commented out a bad speed bump
             // Globals.ReloadArrangements = true; // reload non-bound data on re-entry to reflect any changes
             Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-            Globals.Log("Arrangements GUI Deactivated ...");
+            SMLog.Log("Arrangements GUI Deactivated ...");
         }
 
         private void dgvArrangements_DataError(object sender, DataGridViewDataErrorEventArgs e)

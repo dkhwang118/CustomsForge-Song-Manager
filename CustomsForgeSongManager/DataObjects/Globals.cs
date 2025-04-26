@@ -168,7 +168,7 @@ namespace CustomsForgeSongManager.DataObjects
 
         public static Settings Settings
         {
-            get { return _settings ?? (_settings = new Settings()); }
+            get { return _settings; }
             set { _settings = value; }
         }
 
@@ -233,22 +233,9 @@ namespace CustomsForgeSongManager.DataObjects
         /// <param name="message">The message.</param>
         public static void Log(int threadID, string message)
         {
-            try
-            {
-                if (threadID > -1)
-                {
-                    string msg = string.Format("[Thread:{0}] {1}", threadID, message);
-                    MyLog.Write(msg);
-                }
-                else
-                {
-                    MyLog.Write(message);
-                }
-            }
-            catch
-            {
-                // just ignore it
-            }
+            // Log it to the SMLog, as we'll try to decouple this Globals class from any
+            // unnecessary extras
+            SMLog.Log(threadID, message);
         }
 
         /// <summary>
@@ -257,7 +244,9 @@ namespace CustomsForgeSongManager.DataObjects
         /// <param name="message">The message.</param>
         public static void Log(string message)
         {
-            Log(-1, message);
+            // Log it to the SMLog, as we'll try to decouple this Globals class from any
+            // unnecessary extras
+            SMLog.Log(message);
         }
 
         public static void DebugLog(string message)

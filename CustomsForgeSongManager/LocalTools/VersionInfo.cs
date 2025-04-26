@@ -4,6 +4,7 @@ using System.IO;
 using GenTools;
 using CustomsForgeSongManager.DataObjects;
 using RocksmithToolkitLib.Extensions;
+using DLogNet;
 
 namespace CustomsForgeSongManager.LocalTools
 {
@@ -32,9 +33,9 @@ namespace CustomsForgeSongManager.LocalTools
                 throw new Exception("<ERROR> Could not find file: " + relNotesPath);
 
             var txt = GenExtensions.GetFullAppVersion();
-            Globals.Log("<DEV ONLY> Current CFSM Version: " + txt);
+            SMLog.Log("<DEV ONLY> Current CFSM Version: " + txt);
             File.WriteAllText(verInfoPath, txt);
-            Globals.Log("<DEV ONLY> CreateVersionInfo was sucessful: " + verInfoPath);
+            SMLog.Log("<DEV ONLY> CreateVersionInfo was sucessful: " + verInfoPath);
         }
     }
 }

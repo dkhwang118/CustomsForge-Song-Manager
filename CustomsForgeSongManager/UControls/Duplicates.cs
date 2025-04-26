@@ -63,7 +63,7 @@ namespace CustomsForgeSongManager.UControls
                 song.Selected = false;
 
             // NOTE: do not add SongData.Arrangements to the datagridview
-            Globals.Log("Populating Duplicates GUI ...");
+            SMLog.Log("Populating Duplicates GUI ...");
             dgvDuplicates.Visible = false;
             dgvDuplicates.AllowUserToAddRows = false; // ensures row count = 0    
 
@@ -78,7 +78,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (findDupPIDs) // NOTE: duplicate PID cause in-game lockup
             {
-                Globals.Log("Showing songs and inlays with duplicate PID (GAME CRASHERS) ...");
+                SMLog.Log("Showing songs and inlays with duplicate PID (GAME CRASHERS) ...");
                 var pidList = new List<SongData>();
 
                 // assuming every song has at least one arrangement
@@ -115,7 +115,7 @@ namespace CustomsForgeSongManager.UControls
             }
             else
             {
-                Globals.Log("Showing songs and inlays with either duplicate DLCKey or duplicate ArtistTitleAlbum (case insensitive) ...");
+                SMLog.Log("Showing songs and inlays with either duplicate DLCKey or duplicate ArtistTitleAlbum (case insensitive) ...");
                 // use case insensitive duplicate detection
                 var dupDlcKey = Globals.MasterCollection.GroupBy(x => x.DLCKey.ToUpperInvariant()).Where(g => g.Count() > 1).SelectMany(g => g);
                 // move short words like 'the', expand abbreviations, and strip non-alphanumeric characters and whitespace
@@ -130,13 +130,13 @@ namespace CustomsForgeSongManager.UControls
             if (keyEnabled)
             {
                 duplicateList = duplicateList.Where(x => !Path.GetFileName(x.FilePath).Contains("disabled")).ToList();
-                Globals.Log("Showing duplicate enabled songs ...");
+                SMLog.Log("Showing duplicate enabled songs ...");
             }
 
             if (keyDisabled)
             {
                 duplicateList = duplicateList.Where(x => Path.GetFileName(x.FilePath).Contains("disabled")).ToList();
-                Globals.Log("Showing duplicate disabled songs ...");
+                SMLog.Log("Showing duplicate disabled songs ...");
             }
 
             duplicateList.RemoveAll(x => x.FileName.ToLower().Contains(Constants.RS1COMP));
@@ -210,12 +210,12 @@ namespace CustomsForgeSongManager.UControls
 
                 if (dupPidSelected)
                 {
-                    Globals.Log("Good news, no duplicate PID found ...");
+                    SMLog.Log("Good news, no duplicate PID found ...");
                     txtNoDuplicates.Text = "\r\nGood News ...\r\nNo Duplicate PID Found";
                 }
                 else
                 {
-                    Globals.Log("Good news, no duplicate DLCKey and/or duplicate ArtistTitleAlbum found ...");
+                    SMLog.Log("Good news, no duplicate DLCKey and/or duplicate ArtistTitleAlbum found ...");
                     txtNoDuplicates.Text = "\r\nGood News ...\r\nNo Duplicate DLCKey and/or\r\n Duplicate ArtistTitleAlbum Found";
                 }
 
@@ -339,7 +339,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (Globals.WorkerFinished == Globals.Tristate.Cancelled)
             {
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 return;
             }
         }
@@ -374,7 +374,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (String.IsNullOrEmpty(olderVersionType))
             {
-                Globals.Log("Reset selection ...");
+                SMLog.Log("Reset selection ...");
             }
             else // select older versions
             {
@@ -394,7 +394,7 @@ namespace CustomsForgeSongManager.UControls
                 }
 
                 var selection = DgvExtensions.GetObjectsFromRows<SongData>(dgvDuplicates);
-                Globals.Log(String.Format("Selected ({0}) older duplicate songs ordered by {1} ...", selection.Count, olderVersionType));
+                SMLog.Log(String.Format("Selected ({0}) older duplicate songs ordered by {1} ...", selection.Count, olderVersionType));
             }
 
             dgvDuplicates.Refresh();
@@ -493,7 +493,7 @@ namespace CustomsForgeSongManager.UControls
                     }
                 }
                 else
-                    Globals.Log(String.Format(Properties.Resources.ThisIsARocksmith1CompatiblitySongX0RS1Comp, Environment.NewLine));
+                    SMLog.Log(String.Format(Properties.Resources.ThisIsARocksmith1CompatiblitySongX0RS1Comp, Environment.NewLine));
             }
 
             dgvCurrent.Refresh();
@@ -928,7 +928,7 @@ namespace CustomsForgeSongManager.UControls
             dgvDuplicates.Columns["colSelect"].ReadOnly = false;
             dgvDuplicates.Columns["colPackageVersion"].ReadOnly = false;
             statusDuplicates.RestoreSorting(Globals.DgvCurrent);
-            Globals.Log("Duplicate GUI Activated...");
+            SMLog.Log("Duplicate GUI Activated...");
         }
 
         public void TabLeave()
@@ -947,7 +947,7 @@ namespace CustomsForgeSongManager.UControls
 
             txtNoDuplicates.Visible = false;
             Globals.Settings.SaveSettingsToFile(dgvDuplicates);
-            Globals.Log("Duplicates GUI Deactivated ...");
+            SMLog.Log("Duplicates GUI Deactivated ...");
         }
 
         private void tsmiDuplicateTypeDLCKeyATA_Click(object sender, EventArgs e)

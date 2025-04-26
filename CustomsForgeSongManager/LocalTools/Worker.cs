@@ -79,7 +79,7 @@ namespace CustomsForgeSongManager.LocalTools
             if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
             {
                 // bWorker.Abort(); // don't use abort
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
                 Globals.WorkerFinished = Globals.Tristate.Cancelled;
             }
@@ -88,9 +88,9 @@ namespace CustomsForgeSongManager.LocalTools
                 WorkerProgress(100);
 
                 if (workOrder.Name == "SongManager" || workOrder.Name == "Duplicates" || workOrder.Name == "SetlistManager")
-                    Globals.Log(String.Format("Finished parsing took: {0}", counterStopwatch.Elapsed));
+                    SMLog.Log(String.Format("Finished parsing took: {0}", counterStopwatch.Elapsed));
                 else if (workOrder.Name == "Renamer")
-                    Globals.Log(String.Format("Finished renaming took: {0}", counterStopwatch.Elapsed));
+                    SMLog.Log(String.Format("Finished renaming took: {0}", counterStopwatch.Elapsed));
 
                 Globals.WorkerFinished = Globals.Tristate.True;
             }
@@ -122,14 +122,14 @@ namespace CustomsForgeSongManager.LocalTools
             if (!Globals.IncludeInlays)
                 filesList = filesList.Where(fi => !fi.ToLower().Contains("inlay")).ToList();
             else
-                Globals.Log("Duplicates scan includes any custom inlays ...");
+                SMLog.Log("Duplicates scan includes any custom inlays ...");
 
 
             // initialization
             bwSongCollection = Globals.MasterCollection.ToList();
 
             //// "Raw" is good descriptor :)
-            Globals.Log(String.Format("Raw songs count: {0}", filesList.Count));
+            SMLog.Log(String.Format("Raw songs count: {0}", filesList.Count));
 
             if (filesList.Count == 0)
                 return;
@@ -180,7 +180,7 @@ namespace CustomsForgeSongManager.LocalTools
 
             int removed = Math.Abs(bwSongCollection.Count() - oldCount);
             if (removed > 0)
-                Globals.Log(String.Format("Removed ({0}) obsolete songs/inlays from songsInfo.xml ...", removed));
+                SMLog.Log(String.Format("Removed ({0}) obsolete songs/inlays from songsInfo.xml ...", removed));
 
             Globals.DebugLog("Parsing files ...");
             foreach (string file in filesList)
@@ -215,7 +215,7 @@ namespace CustomsForgeSongManager.LocalTools
                     {
                         if (showLegacyMsg) // do one time
                         {
-                            Globals.Log("Using legacy single thread rescan method ...");
+                            SMLog.Log("Using legacy single thread rescan method ...");
                             showLegacyMsg = false;
                         }
 
@@ -232,7 +232,7 @@ namespace CustomsForgeSongManager.LocalTools
                 for (int ndx = 0; ndx < coreCount; ndx++)
                 {
                     int ndxLocal = ndx; // prevent data not available error
-                    Globals.Log("Starting multi-thread task in core (" + ndxLocal + ") ...");
+                    SMLog.Log("Starting multi-thread task in core (" + ndxLocal + ") ...");
                     tasks[ndx] = Task.Factory.StartNew(() =>
                     {
                         // cross threading protection
@@ -247,11 +247,11 @@ namespace CustomsForgeSongManager.LocalTools
                         var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total"); // , "MyComputer"
                         cpuCounter.NextValue();
                         Thread.Sleep(1000);
-                        Globals.Log("CPU usage for core (" + ndxLocal + "): " + (int)cpuCounter.NextValue() + "% ...");
+                        SMLog.Log("CPU usage for core (" + ndxLocal + "): " + (int)cpuCounter.NextValue() + "% ...");
                     }
                     catch
                     {
-                        Globals.Log("<WARNING> CPU usage for core (" + ndxLocal + ") is not available ...");
+                        SMLog.Log("<WARNING> CPU usage for core (" + ndxLocal + ") is not available ...");
                     }
                 }
 
@@ -338,17 +338,17 @@ namespace CustomsForgeSongManager.LocalTools
             {
                 // corrupt CDLC move to Quarantine folder
                 if (ex.Message.StartsWith("Error reading JObject"))
-                    Globals.Log(String.Format("<ERROR> CDLC is corrupt: {0}", filePath));
+                    SMLog.Log(String.Format("<ERROR> CDLC is corrupt: {0}", filePath));
                 else if (ex.Message.StartsWith("Object reference not set"))
-                    Globals.Log(String.Format("<ERROR> CDLC is missing data: {0}", filePath));
+                    SMLog.Log(String.Format("<ERROR> CDLC is missing data: {0}", filePath));
                 else
-                    Globals.Log(String.Format("<ERROR> {1}: {0}", filePath, ex.Message));
+                    SMLog.Log(String.Format("<ERROR> {1}: {0}", filePath, ex.Message));
 
                 if (AppSettings.Instance.EnableQuarantine)
                 {
                     if (ex.Message.Contains("xblock file"))
                     {
-                        Globals.Log("Assuming the current file is not a song psarc, skipping the quarantine process...");
+                        SMLog.Log("Assuming the current file is not a song psarc, skipping the quarantine process...");
                         return;
                     }
                         
@@ -359,12 +359,12 @@ namespace CustomsForgeSongManager.LocalTools
                         Directory.CreateDirectory(Constants.QuarantineFolder);
 
                     File.Move(filePath, corFilePath);
-                    Globals.Log(String.Format("File was quarantined to: {0}", Constants.QuarantineFolder));
+                    SMLog.Log(String.Format("File was quarantined to: {0}", Constants.QuarantineFolder));
                 }
                 else
                 {
-                    Globals.Log(String.Format("<WARNING> File was not quarantined ..."));
-                    Globals.Log(String.Format(" - Auto quarantine may be enabled in the 'Settings' tabmenu ..."));
+                    SMLog.Log(String.Format("<WARNING> File was not quarantined ..."));
+                    SMLog.Log(String.Format(" - Auto quarantine may be enabled in the 'Settings' tabmenu ..."));
                 }
             }
         }
@@ -401,14 +401,14 @@ namespace CustomsForgeSongManager.LocalTools
                 // Check for duplicate enable/disabled files and remove disabled file
                 //if (baseSongs.Count > 1)
                 //{
-                //    Globals.Log("<WARNING> Invalid songs*.psarc file count ...");
+                //    SMLog.Log("<WARNING> Invalid songs*.psarc file count ...");
 
                 //    for (int i = 1; i < baseSongs.Count; i++)
                 //    {
                 //        var baseSong = Path.Combine(AppSettings.Instance.RSInstalledDir, baseSongs[i]);
                 //        File.Delete(baseSong);
                 //        baseSongs.RemoveAt(i);
-                //        Globals.Log("- Deleted file: " + baseSong + " ...");
+                //        SMLog.Log("- Deleted file: " + baseSong + " ...");
                 //    }
                 //}
 
@@ -433,8 +433,8 @@ namespace CustomsForgeSongManager.LocalTools
                             continue;
 
                         files.Remove(dupPath);
-                        Globals.Log("- Moved disabled duplicate file: " + dupPath);
-                        Globals.Log("- To: " + destFilePath);
+                        SMLog.Log("- Moved disabled duplicate file: " + dupPath);
+                        SMLog.Log("- To: " + destFilePath);
                     }
                 }
             }

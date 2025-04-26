@@ -12,6 +12,7 @@ using System.Reflection;
 using Newtonsoft.Json.Linq;
 using System.Drawing;
 using CustomControls;
+using CustomsForgeSongManager.LocalTools;
 
 namespace CustomsForgeSongManager.Forms
 {
@@ -40,13 +41,13 @@ namespace CustomsForgeSongManager.Forms
             {
                 var odlcSongsJson = reader.ReadToEnd();
                 Globals.OfficialDLCSongList = JsonConvert.DeserializeObject<List<OfficialSong>>(odlcSongsJson);
-                Globals.Log(" - Loaded OfficialSongs.json from embedded resource ...");
+                SMLog.Log(" - Loaded OfficialSongs.json from embedded resource ...");
             }
         }
 
         private Tuple<List<OfficialSong>, List<SongData>> GetDuplicateODLCSongs(bool clean = true)
         {
-            Globals.Log(" - Checking for CDLC/ODLC replacements ...");
+            SMLog.Log(" - Checking for CDLC/ODLC replacements ...");
             List<OfficialSong> duplicateList = new List<OfficialSong>();
             List<SongData> songDataList = new List<SongData>();
 
@@ -77,7 +78,7 @@ namespace CustomsForgeSongManager.Forms
                     {
                         duplicateList.Add(officialSong);
                         songDataList.Add(song);
-                        Globals.Log(" - Found CDLC/ODLC replacement for: " + song.FileName);
+                        SMLog.Log(" - Found CDLC/ODLC replacement for: " + song.FileName);
                     }
 
                     i++;
@@ -103,7 +104,7 @@ namespace CustomsForgeSongManager.Forms
 
             if (duplicateList.Count == 0)
             {
-                Globals.Log(" - No CDLC/ODLC replacements detected ...");
+                SMLog.Log(" - No CDLC/ODLC replacements detected ...");
                 var diaMsg = "CFSM did not find any CDLC in your collection  " + Environment.NewLine +
                              "that have been released as ODLC by Ubisoft.";
                 BetterDialog2.ShowDialog(diaMsg, "Good News!", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Information.Handle), "No CDLC/ODLC Replacements ...", 0, 150);
@@ -127,7 +128,7 @@ namespace CustomsForgeSongManager.Forms
                 dgvOlderODLC.Rows.Add(false, duplicate.Title, duplicate.Artist, duplicate.Pack, duplicate.ReleaseDate.ToShortDateString(), duplicate.Link);
 
             songDataList = lists.Item2;
-            Globals.Log(String.Format(" - Total CDLC/ODLC replacements detected: ({0}) ...", songDataList.Count));
+            SMLog.Log(String.Format(" - Total CDLC/ODLC replacements detected: ({0}) ...", songDataList.Count));
 
             return true;
         }

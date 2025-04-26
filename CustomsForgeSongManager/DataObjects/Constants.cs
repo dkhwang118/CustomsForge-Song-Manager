@@ -219,5 +219,20 @@ namespace CustomsForgeSongManager.DataObjects
                                  Assembly.GetExecutingAssembly().GetName().Version.Build,
                                  Assembly.GetExecutingAssembly().GetName().Version.Revision);
         }
+
+        /// <summary>
+        /// Returns the path to the grid settings file for the given grid name.
+        /// Here as a method until a better place is found
+        /// => we should not be using Globals.DgvCurrent
+        /// => we should not have a dynamic property for the grid settings path
+        /// that relies on updates to Globals.DgvCurrent
+        /// </summary>
+        /// <param name="gridName"></param>
+        /// <returns></returns>
+        public static string GetGridSettingsPathForGridName(string gridName)
+        {
+            //Globals.DgvCurrent.Name = gridName; // update current grid name
+            return Path.Combine(GridSettingsFolder, String.Format("{0}{1}", gridName, ".xml"));
+        }
     }
 }

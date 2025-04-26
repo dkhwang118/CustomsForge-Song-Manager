@@ -153,8 +153,6 @@ namespace DLogNet
         /// <param name="textBox">TextBox to add</param>
         public void AddTargetTextBox(TextBox textBox)
         {
-            if (targetTextBoxes == null)
-                targetTextBoxes = new List<TextBox>();
             targetTextBoxes.Add(textBox);
         }
 

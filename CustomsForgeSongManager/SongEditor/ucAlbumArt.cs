@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using CFSM.ImageTools;
 using CustomsForgeSongManager.DataObjects;
 using RocksmithToolkitLib.PSARC;
+using CustomsForgeSongManager.LocalTools;
 
 namespace CustomsForgeSongManager.SongEditor
 {
@@ -55,7 +56,7 @@ namespace CustomsForgeSongManager.SongEditor
 
             if (newImageStream.Length == 0)
             {
-                Globals.Log(String.Format("Unable to convert {0}x{1} image.", width, height));
+                SMLog.Log(String.Format("Unable to convert {0}x{1} image.", width, height));
                 return false;
             }
 
@@ -134,7 +135,7 @@ namespace CustomsForgeSongManager.SongEditor
                     }
                     catch (Exception ex)
                     {
-                        Globals.Log(String.Format("{0}: {1}", Properties.Resources.ERROR, ex.Message));
+                        SMLog.Log(String.Format("{0}: {1}", Properties.Resources.ERROR, ex.Message));
                         return;
                     }
                     Dirty = true;

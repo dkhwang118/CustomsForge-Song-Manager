@@ -27,7 +27,7 @@ namespace CustomsForgeSongManager.UControls
 
         public void PopulateAbout()
         {
-            Globals.Log("Populating About GUI ...");
+            SMLog.Log("Populating About GUI ...");
         }
 
         private void ToggleUIControls(bool enable)
@@ -75,7 +75,7 @@ namespace CustomsForgeSongManager.UControls
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 0; });
                 ZipUtilities.DeleteDirectory(downloadDir);
                 Directory.CreateDirectory(downloadDir);
-                Globals.Log("Downloading WebApp: " + appArchive + " ...");
+                SMLog.Log("Downloading WebApp: " + appArchive + " ...");
 
                 // TODO: generate a programatic click to update google stats 
                 Process.Start(new ProcessStartInfo(versInfoUrl)
@@ -87,13 +87,13 @@ namespace CustomsForgeSongManager.UControls
 
                 if (AutoUpdater.DownloadWebApp(downloadUrl, appArchive, downloadDir))
                 {
-                    Globals.Log(appExe + " download ... SUCCESSFUL");
+                    SMLog.Log(appExe + " download ... SUCCESSFUL");
                     GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 30; });
 
                     if (ZipUtilities.UnrarDir(Path.Combine(downloadDir, appArchive), downloadDir))
                     {
                         File.Delete(Path.Combine(downloadDir, appArchive));
-                        Globals.Log(appAcro + " Archive Unpacked ... SUCCESSFUL");
+                        SMLog.Log(appAcro + " Archive Unpacked ... SUCCESSFUL");
                         GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 60; });
 
                         var ret = GenExtensions.RunExtExe(Path.Combine(downloadDir, appSetup), false, arguments: @"/SP /VERYSILENT /SUPPRESSMSGBOXES ");
@@ -101,18 +101,18 @@ namespace CustomsForgeSongManager.UControls
                         if (String.IsNullOrEmpty(ret))
                         {
                             // CGT user prefs are auto preserved by CGT (not overwritten)
-                            Globals.Log(appAcro + " shortcut added to Start Menu ... SUCCESSFUL");
-                            Globals.Log(appAcro + " Update ... SUCCESSFUL");
+                            SMLog.Log(appAcro + " shortcut added to Start Menu ... SUCCESSFUL");
+                            SMLog.Log(appAcro + " Update ... SUCCESSFUL");
                             GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 100; });
                         }
                         else
-                            Globals.Log(appAcro + " Update ... FAILED");
+                            SMLog.Log(appAcro + " Update ... FAILED");
                     }
                     else
-                        Globals.Log(appAcro + " archive unpacked ... FAILED");
+                        SMLog.Log(appAcro + " archive unpacked ... FAILED");
                 }
                 else
-                    Globals.Log(appExe + " download ... FAILED");
+                    SMLog.Log(appExe + " download ... FAILED");
             }
 
             ToggleUIControls(true);
@@ -142,7 +142,7 @@ namespace CustomsForgeSongManager.UControls
             var versOnline = divTags.FirstOrDefault(url => url.StartsWith("1.8 RC10"));
             if (versOnline == null)
             {
-                Globals.Log(appAcro + " online version ... NOT FOUND");
+                SMLog.Log(appAcro + " online version ... NOT FOUND");
                 ToggleUIControls(true);
                 return;
             }
@@ -169,7 +169,7 @@ namespace CustomsForgeSongManager.UControls
             {
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 0; });
                 // save user prefs
-                Globals.Log(appExe + " [" + versInstalled + "] needs updating ...");
+                SMLog.Log(appExe + " [" + versInstalled + "] needs updating ...");
 
                 if (File.Exists(Path.Combine(downloadDir, "appCfg")))
                     File.Copy(Path.Combine(downloadDir, appCfg), Path.Combine(Path.GetTempPath(), appCfg));
@@ -179,19 +179,19 @@ namespace CustomsForgeSongManager.UControls
 
                 if (AutoUpdater.DownloadWebApp(updateUrl, appArchive, downloadDir))
                 {
-                    Globals.Log(appArchive + " download ... SUCCESSFUL");
+                    SMLog.Log(appArchive + " download ... SUCCESSFUL");
                     GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 30; });
 
                     if (ZipUtilities.UnzipDir(Path.Combine(downloadDir, appArchive), downloadDir))
                     {
                         File.Delete(Path.Combine(downloadDir, appArchive));
-                        Globals.Log(appArchive + " archive unpacked ... SUCCESSFUL");
+                        SMLog.Log(appArchive + " archive unpacked ... SUCCESSFUL");
                         GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 50; });
 
                         if (File.Exists(Path.Combine(Constants.WorkFolder, appCfg)))
                         {
                             File.Copy(Path.Combine(Path.GetTempPath(), appCfg), Path.Combine(downloadDir, appCfg));
-                            Globals.Log(appAcro + " configuration restored ...");
+                            SMLog.Log(appAcro + " configuration restored ...");
                             GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 70; });
                         }
 
@@ -202,17 +202,17 @@ namespace CustomsForgeSongManager.UControls
 
                         GenExtensions.AddShortcut(Environment.SpecialFolder.Programs, exeShortcutLink: "EOF.lnk", exePath: exePath, exeIconPath: iconPath, shortcutDescription: "Editor on Fire", destSubDirectory: "Editor on Fire");
 
-                        Globals.Log(appAcro + " shortcut added to Start Menu, Programs ... SUCCESSFUL");
+                        SMLog.Log(appAcro + " shortcut added to Start Menu, Programs ... SUCCESSFUL");
                         GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 100; });
                     }
                     else
-                        Globals.Log(appAcro + " archive unpacked ... FAILED");
+                        SMLog.Log(appAcro + " archive unpacked ... FAILED");
                 }
                 else
-                    Globals.Log(appExe + " download ... FAILED");
+                    SMLog.Log(appExe + " download ... FAILED");
             }
             else
-                Globals.Log(appExe + " [" + versInstalled + "] does not need updating ...");
+                SMLog.Log(appExe + " [" + versInstalled + "] does not need updating ...");
 
 
             ToggleUIControls(true);
@@ -235,7 +235,7 @@ namespace CustomsForgeSongManager.UControls
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 0; });
 
                 // save user prefs
-                Globals.Log(appAcro + " needs updating ...");
+                SMLog.Log(appAcro + " needs updating ...");
                 if (File.Exists(Path.Combine(downloadDir, "RocksmithToolkitLib.TuningDefinition.xml")))
                 {
                     File.Copy(Path.Combine(downloadDir, "RocksmithToolkitLib.Config.xml"), Path.Combine(Path.GetTempPath(), "RocksmithToolkitLib.Config.xml"));
@@ -247,7 +247,7 @@ namespace CustomsForgeSongManager.UControls
                 ZipUtilities.DeleteDirectory(downloadDir);
                 Directory.CreateDirectory(downloadDir);
 
-                Globals.Log("Extracting " + appAcro + " Download ...");
+                SMLog.Log("Extracting " + appAcro + " Download ...");
                 var urlLinks = new List<string>();
                 // urlLinks = AutoUpdater.ExtractUrlData(updateUrl);
                 // using latest_test.zip (much faster than ExctractUrlData method)
@@ -262,7 +262,7 @@ namespace CustomsForgeSongManager.UControls
 
                     if (downloadLink == null)
                     {
-                        Globals.Log(appAcro + "  Download ... NOT FOUND");
+                        SMLog.Log(appAcro + "  Download ... NOT FOUND");
                         ToggleUIControls(true);
                         return;
                     }
@@ -271,13 +271,13 @@ namespace CustomsForgeSongManager.UControls
 
                     if (AutoUpdater.DownloadWebApp(downloadLink, appArchive, downloadDir))
                     {
-                        Globals.Log(appAcro + " Download ... SUCCESSFUL");
+                        SMLog.Log(appAcro + " Download ... SUCCESSFUL");
                         GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 50; });
 
                         if (ZipUtilities.UnzipDir(Path.Combine(downloadDir, appArchive), downloadDir))
                         {
                             File.Delete(Path.Combine(downloadDir, appArchive));
-                            Globals.Log(appAcro + " Archive unpacked ... SUCCESSFUL");
+                            SMLog.Log(appAcro + " Archive unpacked ... SUCCESSFUL");
                             GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 70; });
 
                             // use the toolkit new directory structure
@@ -291,24 +291,24 @@ namespace CustomsForgeSongManager.UControls
                                 config.Merge(Path.Combine(Path.GetTempPath(), "RocksmithToolkitLib.Config.xml"), Path.Combine(downloadDir, "RocksmithToolkitLib.Config.xml"));
                                 appid.Merge(Path.Combine(Path.GetTempPath(), "RocksmithToolkitLib.SongAppId.xml"), Path.Combine(downloadDir, "RocksmithToolkitLib.SongAppId.xml"));
                                 tuning.Merge(Path.Combine(Path.GetTempPath(), "RocksmithToolkitLib.TuningDefinition.xml"), Path.Combine(downloadDir, "RocksmithToolkitLib.TuningDefinition.xml"));
-                                Globals.Log(appAcro + " Configurations Restored ...");
+                                SMLog.Log(appAcro + " Configurations Restored ...");
                                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 80; });
                             }
 
                             var exePath = Path.Combine(downloadDir, appExe);
                             var iconPath = Path.Combine(downloadDir, "songcreator.ico");
                             GenExtensions.AddShortcut(Environment.SpecialFolder.Programs, exeShortcutLink: "RocksmithToolkit.lnk", exePath: exePath, exeIconPath: iconPath, shortcutDescription: "Rocksmith Custom Song Toolkit", destSubDirectory: "RocksmithToolkit");
-                            Globals.Log(appAcro + " Shortcut added to Start Menu, Programs ... SUCCESSFUL");
+                            SMLog.Log(appAcro + " Shortcut added to Start Menu, Programs ... SUCCESSFUL");
                             GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate { Globals.TsProgressBar_Main.Value = 100; });
                         }
                         else
-                            Globals.Log(appAcro + " Archive unpacked ... FAILED");
+                            SMLog.Log(appAcro + " Archive unpacked ... FAILED");
                     }
                     else
-                        Globals.Log(appAcro + " Download ... FAILED");
+                        SMLog.Log(appAcro + " Download ... FAILED");
                 }
                 else
-                    Globals.Log("Link Extraction ... FAILED");
+                    SMLog.Log("Link Extraction ... FAILED");
             }
 
             ToggleUIControls(true);

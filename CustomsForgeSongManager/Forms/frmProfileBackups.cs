@@ -44,7 +44,7 @@ namespace CustomsForgeSongManager.Forms
                         if (File.Exists(filePath))
                         {
                             File.Delete(filePath);
-                            Globals.Log("Deleted profile backup: " + filePath);
+                            SMLog.Log("Deleted profile backup: " + filePath);
                         }
 
                         dgvProfileBackups.Rows.RemoveAt(rowNdx);
@@ -57,7 +57,7 @@ namespace CustomsForgeSongManager.Forms
                     }
             catch (IOException ex)
             {
-                Globals.Log("Unable to delete the profile backup, error: " + ex.Message.ToString());
+                SMLog.Log("Unable to delete the profile backup, error: " + ex.Message.ToString());
             }
         }
 

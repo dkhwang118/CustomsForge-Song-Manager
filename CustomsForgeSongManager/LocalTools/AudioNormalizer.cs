@@ -48,7 +48,7 @@ namespace CustomsForgeSongManager.LocalTools
             if (!Directory.Exists(ffmpegDir))
                 Directory.CreateDirectory(ffmpegDir);
 
-            Globals.Log("<WARNING> To use the 'Auto Adjust CDLC Volume' feature, " +
+            SMLog.Log("<WARNING> To use the 'Auto Adjust CDLC Volume' feature, " +
                         "please download FFmpegSetup.rar from http://goo.gl/i9jXEZ ...");
             frmNoteViewer.ViewExternalFile("ffmpeg/ReadMe.txt", "Auto Adjust CDLC Volume");
 
@@ -67,7 +67,7 @@ namespace CustomsForgeSongManager.LocalTools
                 Path.GetFileName(srcPath).ToLower().Contains(Constants.SONGPACK) ||
                 Path.GetFileName(srcPath).ToLower().Contains(Constants.ABVSONGPACK))
             {
-                Globals.Log("<WARNING> Audio from SongPacks is not available for normalization ...");
+                SMLog.Log("<WARNING> Audio from SongPacks is not available for normalization ...");
                 return false;
             }
 
@@ -80,13 +80,13 @@ namespace CustomsForgeSongManager.LocalTools
                 var oggPath = Path.Combine(Constants.TempWorkFolder, Path.GetFileNameWithoutExtension(srcPath) + ".ogg");
                 if (!PsarcBrowser.ExtractAudio(srcPath, oggPath, ""))
                 {
-                    Globals.Log(Properties.Resources.CouldNotExtractTheAudio);
+                    SMLog.Log(Properties.Resources.CouldNotExtractTheAudio);
                     return false;
                 }
 
                 if (!File.Exists(oggPath))
                 {
-                    Globals.Log("<ERROR> Could not find ogg file: " + oggPath);
+                    SMLog.Log("<ERROR> Could not find ogg file: " + oggPath);
                     return false;
                 }
 
@@ -109,7 +109,7 @@ namespace CustomsForgeSongManager.LocalTools
                 Application.DoEvents();
 
                 // analyze the audio
-                Globals.Log(" - Running EBU R128 Normalization Analysis ...");
+                SMLog.Log(" - Running EBU R128 Normalization Analysis ...");
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 var ffmpegDir = Path.Combine(baseDir, "ffmpeg");
                 var ffmpegExe = Path.Combine(ffmpegDir, "ffmpeg.exe");
@@ -167,7 +167,7 @@ namespace CustomsForgeSongManager.LocalTools
                     // get the cmd window out of the way so we can debug
                     cmdWin.Close();
                     cmdWin.Dispose();
-                    Globals.Log(" - Debugging Mode for Developer Use Only ...");
+                    SMLog.Log(" - Debugging Mode for Developer Use Only ...");
 
                     // POC constant overrides for testing/reference
                     //audioOptions.CorrectionFactor = 1.0f;
@@ -178,17 +178,17 @@ namespace CustomsForgeSongManager.LocalTools
                     //audioOptions.TargetLUFS = -16.0f;
                 }
 
-                Globals.Log(" - Correction Factor: " + Math.Round((float)audioOptions.CorrectionFactor, 1));
-                Globals.Log(" - Correction Multiplier: " + Math.Round((float)audioOptions.CorrectionMultiplier, 1));
-                Globals.Log(" - Target Audio Volume: " + Math.Round((float)audioOptions.TargetAudioVolume, 1));
-                Globals.Log(" - Target Preview Volume: " + Math.Round((float)audioOptions.TargetPreviewVolume, 1));
-                Globals.Log(" - Target Tone Volume: " + Math.Round((float)audioOptions.TargetToneVolume, 1));
-                Globals.Log(" - Target LUFS: " + Math.Round((float)audioOptions.TargetLUFS, 1));
-                Globals.Log(" - Integrated LUFS: " + input_i);
+                SMLog.Log(" - Correction Factor: " + Math.Round((float)audioOptions.CorrectionFactor, 1));
+                SMLog.Log(" - Correction Multiplier: " + Math.Round((float)audioOptions.CorrectionMultiplier, 1));
+                SMLog.Log(" - Target Audio Volume: " + Math.Round((float)audioOptions.TargetAudioVolume, 1));
+                SMLog.Log(" - Target Preview Volume: " + Math.Round((float)audioOptions.TargetPreviewVolume, 1));
+                SMLog.Log(" - Target Tone Volume: " + Math.Round((float)audioOptions.TargetToneVolume, 1));
+                SMLog.Log(" - Target LUFS: " + Math.Round((float)audioOptions.TargetLUFS, 1));
+                SMLog.Log(" - Integrated LUFS: " + input_i);
 
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate
                 { Globals.TsProgressBar_Main.Value = 60; });
-                Globals.Log(" - Reading current volume data ...");
+                SMLog.Log(" - Reading current volume data ...");
 
                 // load package artifacts
                 DLCPackageData packageData;
@@ -207,9 +207,9 @@ namespace CustomsForgeSongManager.LocalTools
                 packageData.Volume = audioOptions.TargetAudioVolume + lufsOffset;
                 packageData.PreviewVolume = audioOptions.TargetPreviewVolume + lufsOffset;
 
-                Globals.Log(" - POC Auto Adjust CDLC Volume Equation ...");
-                Globals.Log("   NewAudioVolume = TargetAudioVolume + (IntegratedLUFS + TargetLUFS * -1) * CorrectionFactor * CorrectionMultiplier");
-                Globals.Log("   New CDLC Audio Volume (Toolkit LF): " + packageData.Volume + " = " + audioOptions.TargetAudioVolume + " + (" + Convert.ToSingle(input_i, CultureInfo.InvariantCulture) + " + " + audioOptions.TargetLUFS + " * -1) * " + audioOptions.CorrectionFactor + " * " + audioOptions.CorrectionMultiplier);
+                SMLog.Log(" - POC Auto Adjust CDLC Volume Equation ...");
+                SMLog.Log("   NewAudioVolume = TargetAudioVolume + (IntegratedLUFS + TargetLUFS * -1) * CorrectionFactor * CorrectionMultiplier");
+                SMLog.Log("   New CDLC Audio Volume (Toolkit LF): " + packageData.Volume + " = " + audioOptions.TargetAudioVolume + " + (" + Convert.ToSingle(input_i, CultureInfo.InvariantCulture) + " + " + audioOptions.TargetLUFS + " * -1) * " + audioOptions.CorrectionFactor + " * " + audioOptions.CorrectionMultiplier);
 
                 for (int i = 0; i < packageData.TonesRS2014.Count; i++)
                 {
@@ -219,7 +219,7 @@ namespace CustomsForgeSongManager.LocalTools
 
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate
                 { Globals.TsProgressBar_Main.Value = 80; });
-                Globals.Log(" - Writing new volume data ...");
+                SMLog.Log(" - Writing new volume data ...");
 
                 try
                 {
@@ -242,7 +242,7 @@ namespace CustomsForgeSongManager.LocalTools
             }
             catch (Exception ex)
             {
-                Globals.Log("Unspecified error: " + ex.ToString());
+                SMLog.Log("Unspecified error: " + ex.ToString());
                 //Debug.WriteLine(ex.Message);
                 return false;
             }
@@ -257,7 +257,7 @@ namespace CustomsForgeSongManager.LocalTools
             FileTools.VerifyCfsmFolders();
             GenExtensions.DeleteFile(Constants.FfmpegLogPath);
             FileTools.CleanDlcFolder();
-            Globals.Log("Auto Adjusting CDLC Volume ...");
+            SMLog.Log("Auto Adjusting CDLC Volume ...");
 
             var srcFilePaths = FileTools.SongFilePaths(songs);
             var total = srcFilePaths.Count;
@@ -267,7 +267,7 @@ namespace CustomsForgeSongManager.LocalTools
             foreach (var srcFilePath in srcFilePaths)
             {
                 var isSkipped = false;
-                Globals.Log("Processing: " + Path.GetFileName(srcFilePath));
+                SMLog.Log("Processing: " + Path.GetFileName(srcFilePath));
                 processed++;
                 GenericWorker.ReportProgress(processed, total, skipped, failed);
 
@@ -277,14 +277,14 @@ namespace CustomsForgeSongManager.LocalTools
                 {
                     if (isOfficialRepairedDisabled.Contains("Official"))
                     {
-                        Globals.Log(" - Skipped ODLC File");
+                        SMLog.Log(" - Skipped ODLC File");
                         skipped++;
                         isSkipped = true;
                     }
 
                     if (isOfficialRepairedDisabled.Contains("Normalized"))
                     {
-                        Globals.Log(" - Skipped Previously Normalized File");
+                        SMLog.Log(" - Skipped Previously Normalized File");
                         skipped++;
                         isSkipped = true;
                     }
@@ -297,7 +297,7 @@ namespace CustomsForgeSongManager.LocalTools
                     if (!result)
                     {
                         var lines = sbErrors.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToList();
-                        Globals.Log(String.Format(" - CDLC audio can not be adjusted ..."));
+                        SMLog.Log(String.Format(" - CDLC audio can not be adjusted ..."));
 
                         failed++;
 
@@ -329,21 +329,21 @@ namespace CustomsForgeSongManager.LocalTools
                     tw.Close();
                 }
 
-                Globals.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
+                SMLog.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
             }
 
             GenericWorker.ReportProgress(processed, total, skipped, failed);
 
             if (processed > 0)
             {
-                Globals.Log("Auto Adjust CDLC Volume Completed ...");
+                SMLog.Log("Auto Adjust CDLC Volume Completed ...");
                 Globals.ReloadSongManager = true;
 
                 if (!Constants.DebugMode)
                     GenExtensions.CleanLocalTemp();
             }
             else
-                Globals.Log("There were no CDLC volume adjustments ...");
+                SMLog.Log("There were no CDLC volume adjustments ...");
 
             return sbErrors;
         }
@@ -363,7 +363,7 @@ namespace CustomsForgeSongManager.LocalTools
                     }
                     catch (AccessViolationException)
                     {
-                        Globals.Log("Error: ACE exception");
+                        SMLog.Log("Error: ACE exception");
                     }
                     
                     Application.DoEvents();

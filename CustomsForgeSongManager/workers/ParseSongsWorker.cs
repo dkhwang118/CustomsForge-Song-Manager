@@ -132,7 +132,7 @@ namespace CustomsForgeSongManager.Workers
             if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
             {
                 // bWorker.Abort(); // don't use abort
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
                 Globals.WorkerFinished = Globals.Tristate.Cancelled;
             }
@@ -140,7 +140,7 @@ namespace CustomsForgeSongManager.Workers
             {
                 //WorkerProgress(100);
 
-                Globals.Log(String.Format("Finished multithread parsing took: {0}", _counterStopwatch.Elapsed));
+                SMLog.Log(String.Format("Finished multithread parsing took: {0}", _counterStopwatch.Elapsed));
                 Globals.WorkerFinished = Globals.Tristate.True;
             }
 
@@ -199,7 +199,7 @@ namespace CustomsForgeSongManager.Workers
                     // If we have messages, dequeue them and send them to the UI
                     while (_messageQueue.TryDequeue(out var message))
                     {
-                        Globals.Log(message);              
+                        SMLog.Log(message);              
                     }
                 }
             }
@@ -291,7 +291,7 @@ namespace CustomsForgeSongManager.Workers
 
                 // "Raw" is good descriptor :)
                 // Log the amount of songs found
-                Globals.Log(String.Format("Raw songs count: {0}", songFilePathsDiscovered.Count));
+                SMLog.Log(String.Format("Raw songs count: {0}", songFilePathsDiscovered.Count));
 
                 // Try to get the current collection of song data
                 if (!tryGetValidLocalSongData(out List<SongData> localSongData))
@@ -332,7 +332,7 @@ namespace CustomsForgeSongManager.Workers
             if (!Globals.IncludeInlays)
                 songFilePathsDiscovered = songFilePathsDiscovered.Where(fi => !fi.ToLower().Contains("inlay")).ToList();
             else
-                Globals.Log("Duplicates scan includes any custom inlays ...");
+                SMLog.Log("Duplicates scan includes any custom inlays ...");
 
             // If after removing inlays, we have no files to parse, exits
             if (songFilePathsDiscovered.Count == 0)
@@ -371,7 +371,7 @@ namespace CustomsForgeSongManager.Workers
 
             int removed = Math.Abs(globalSongData.Count() - oldCount);
             if (removed > 0)
-                Globals.Log(String.Format("Removed ({0}) obsolete songs/inlays from songsInfo.xml ...", removed));
+                SMLog.Log(String.Format("Removed ({0}) obsolete songs/inlays from songsInfo.xml ...", removed));
 
             return true;
         }

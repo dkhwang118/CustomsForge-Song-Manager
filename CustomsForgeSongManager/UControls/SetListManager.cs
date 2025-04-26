@@ -49,7 +49,7 @@ namespace CustomsForgeSongManager.UControls
 
         public void PopulateSetlistManager()
         {
-            Globals.Log("Populating SetlistManager GUI ...");
+            SMLog.Log("Populating SetlistManager GUI ...");
             DgvExtensions.DoubleBuffered(dgvSetlistMaster);
             Globals.Settings.LoadSettingsFromFile(dgvSetlistMaster, true);
 
@@ -406,7 +406,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (Globals.WorkerFinished == Globals.Tristate.Cancelled)
             {
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 return;
             }
 
@@ -749,8 +749,8 @@ namespace CustomsForgeSongManager.UControls
                             File.Delete(newSongPath);
 
                         File.Copy(songPath, newSongPath);
-                        Globals.Log("Copied: " + oldSong.FilePath);
-                        Globals.Log("To: " + newSong.FilePath);
+                        SMLog.Log("Copied: " + oldSong.FilePath);
+                        SMLog.Log("To: " + newSong.FilePath);
                         setlistMaster.Add(newSong);
                     }
                 }
@@ -1029,7 +1029,7 @@ namespace CustomsForgeSongManager.UControls
                 if (Steam.IsSteamInstallationValid(out output))
                     Steam.RunSteamExecutable("-applaunch 221680");
                 else
-                    Globals.Log(output);
+                    SMLog.Log(output);
             }
         }
 
@@ -1302,7 +1302,7 @@ namespace CustomsForgeSongManager.UControls
             var filterStatus = DataGridViewAutoFilterColumnHeaderCell.GetFilterStatus(dgvSetlistMaster);
             if (!bindingCompleted)
             {
-                // Globals.Log("DataBinding Complete ... ");
+                // SMLog.Log("DataBinding Complete ... ");
                 bindingCompleted = true;
                 // filter applied
                 if (!String.IsNullOrEmpty(filterStatus))
@@ -1330,7 +1330,7 @@ namespace CustomsForgeSongManager.UControls
             if (bindingCompleted && !dgvPainted)
             {
                 dgvPainted = true;
-                // Globals.Log("dgvSongs Painted ... ");
+                // SMLog.Log("dgvSongs Painted ... ");
             }
         }
 
@@ -1423,7 +1423,7 @@ namespace CustomsForgeSongManager.UControls
             Globals.DgvCurrent = dgvSetlistMaster;
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             statusSetlistMaster.RestoreSorting(Globals.DgvCurrent);
-            Globals.Log("Setlist Manager GUI Activated...");
+            SMLog.Log("Setlist Manager GUI Activated...");
         }
 
         public void TabLeave()
@@ -1431,7 +1431,7 @@ namespace CustomsForgeSongManager.UControls
             statusSetlistMaster.SaveSorting(Globals.DgvCurrent);
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-            Globals.Log("Setlist Manager GUI Deactivated ...");
+            SMLog.Log("Setlist Manager GUI Deactivated ...");
         }
 
         private void dgvSongPacks_CellValueChanged(object sender, DataGridViewCellEventArgs e)

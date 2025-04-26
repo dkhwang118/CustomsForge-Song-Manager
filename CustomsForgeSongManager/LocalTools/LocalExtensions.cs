@@ -43,7 +43,7 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 catch (Exception)
                 {
-                    Globals.Log("Can not find Steam version of Rocksmith 2014");
+                    SMLog.Log("Can not find Steam version of Rocksmith 2014");
                 }
         }
 
@@ -121,11 +121,11 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (found)
             {
-                Globals.Log("Found Custom RS2014 Installation Directory ...");
+                SMLog.Log("Found Custom RS2014 Installation Directory ...");
                 return rsFolderPath;
             }
 
-            Globals.Log("<WARNING> Custom RS2014 Installation Directory not found ...");
+            SMLog.Log("<WARNING> Custom RS2014 Installation Directory not found ...");
             return String.Empty;
         }
 
@@ -192,19 +192,19 @@ namespace CustomsForgeSongManager.LocalTools
                             rs2RootDir = GetStringValueFromRegistry(rsX86Steam, installValueName);
 
                         if (!String.IsNullOrEmpty(rs2RootDir))
-                            Globals.Log("Found Steam RS2014 Installation Directory in Registry ...");
+                            SMLog.Log("Found Steam RS2014 Installation Directory in Registry ...");
                     }
                     else
-                        Globals.Log("<WARNING> Steam RS2014 Installation Directory not found in Registry ...");
+                        SMLog.Log("<WARNING> Steam RS2014 Installation Directory not found in Registry ...");
                 }
                 else
-                    Globals.Log("<WARNING> Steam root path not found in Registry ... ");
+                    SMLog.Log("<WARNING> Steam root path not found in Registry ... ");
 
                 return rs2RootDir;
             }
             catch (Exception ex)
             {
-                Globals.Log("<Warning> GetStreamDirectory, " + ex.Message);
+                SMLog.Log("<Warning> GetStreamDirectory, " + ex.Message);
             }
 
             return String.Empty;
@@ -269,11 +269,11 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (found && Directory.Exists(rsFolderPath))
             {
-                Globals.Log("Found Custom RS2014 Installation Directory ...");
+                SMLog.Log("Found Custom RS2014 Installation Directory ...");
                 return rsFolderPath;
             }
 
-            Globals.Log("<WARNING> Custom RS2014 Installation Directory not found ...");
+            SMLog.Log("<WARNING> Custom RS2014 Installation Directory not found ...");
             return String.Empty;
         }
 

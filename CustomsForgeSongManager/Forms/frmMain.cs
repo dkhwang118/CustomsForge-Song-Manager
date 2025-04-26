@@ -24,6 +24,7 @@ using System.Threading;
 using RocksmithToolkitLib.Extensions;
 using System.Configuration;
 using System.Globalization;
+using DLogNet;
 
 // NOTE: the app is designed for default user screen resolution of 1024x768
 // dev screen resolution should be set to this when designing forms and controls
@@ -50,7 +51,12 @@ namespace CustomsForgeSongManager.Forms
         /// <summary>
         /// Dictionary to hold references to tab pages (e.g SongManager, ArrangementAnalyzer, Settings, etc.).
         /// </summary>
-        private Dictionary<Type,INotifyTabChanged> _tabPages = new Dictionary<Type, INotifyTabChanged>();
+        private Dictionary<Type,INotifyTabChanged> _tabPageViews = new Dictionary<Type, INotifyTabChanged>();
+
+        /// <summary>
+        /// Tab index for the currently selected tab.
+        /// </summary>
+        private int _tabIndex = -1;
 
 #if INNORELEASE
         // depricated method
@@ -67,26 +73,40 @@ namespace CustomsForgeSongManager.Forms
         private const string APP_ARCHIVE = "CFSMSetup.rar";
 #endif
 
-        public frmMain(DLogNet.DLogger myLog)
+        public frmMain()
         {
+            // Initialize the form and its components
             InitializeComponent();
 
-            // initialize the log
-            Globals.MyLog = myLog;
-            myLog.AddTargetTextBox(tbLog); 
-            Globals.TbLog = this.tbLog;
+            // Set the form's title
+            setApplicationTitle();
+
+            // Setup the log textbox
+            SMLog.SetMainLogTextBox(tbLog);
+            //Globals.TbLog = this.tbLog;
             //Globals.MyLog.AddTargetTextBox(tbLog);
 
             // verify application directory structure
-            FileTools.VerifyCfsmFolders();
+            //FileTools.VerifyCfsmFolders();
             // FileTools.VerifyCfsmFiles(); 
+            ValidationTool.ValidateSongManagerFolders();
 
             // create VersionInfo.txt file
             VersionInfo.CreateVersionInfo();
 
+            // Log the runtime environemnt
+            logApplicationRuntimeEnvironment();
+
             //this will initialize classes that need to be initialized right away.
-            TypeExtensions.InitializeClasses(new string[] { "UTILS_INIT", "CFSM_INIT" }, new Type[] { }, new object[] { });
-            
+            //TypeExtensions.InitializeClasses(new string[] { "UTILS_INIT", "CFSM_INIT" }, new Type[] { }, new object[] { });
+
+
+
+            //=================================================
+            //            Form's Child Controls
+            //=================================================
+
+
             // Set up the top ToolStrip
             // important prevent toolstrip from growing/changing at runtime
             // toolstrip may appear changed in design mode (this is a known VS bug)
@@ -99,9 +119,13 @@ namespace CustomsForgeSongManager.Forms
             tsAudioPlayer.Visible = true;
             playFunction += new PlayCall(PlaySong);
 
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
+            // If we have notifications enabled
+            if (AppSettings.Instance.EnableNotifications)
+                // add the notify icon to the logger
+                SMLog.Logger.AddTargetNotifyIcon(notifyIcon_Main);
 
-            Globals.Notifier = this.notifyIcon_Main;
+            // TODO: Remove the use of these Globals
+            //Globals.Notifier = this.notifyIcon_Main;
             Globals.TsProgressBar_Main = this.tsProgressBar_Main;
             Globals.TsLabel_MainMsg = this.tsLabel_MainMsg;
             Globals.TsLabel_StatusMsg = this.tsLabel_StatusMsg;
@@ -110,28 +134,11 @@ namespace CustomsForgeSongManager.Forms
 
 
 
-            ResetBottomToolStrip();
 
+            //===========================================================
+            //            Event handlers
+            //===========================================================
 
-            
-
-            //    Globals.CFMTheme.AddListener(this);
-
-            // event handler to maybe get rid of notifier icon on closing
-            this.Closing += (object sender, CancelEventArgs e) =>
-            {
-                Globals.MyLog.RemoveTargetNotifyIcon(Globals.Notifier);
-                notifyIcon_Main.Visible = false;
-                notifyIcon_Main.Icon = null;
-                notifyIcon_Main.Dispose();
-            };
-
-            // Event handler to handle form closing events
-            this.FormClosing += (object sender, FormClosingEventArgs e) =>
-            {
-                // Dispose of the DLogger
-                myLog.Dispose();
-            };
 
             // ?? Disable the tab control if a scan is in progress ??
             Globals.OnScanEvent += (s, e) =>
@@ -142,76 +149,47 @@ namespace CustomsForgeSongManager.Forms
                 });
             };
 
-            // initialize show log event handler before loading settings
-            AppSettings.Instance.PropertyChanged += (s, e) =>
+            // Hook the PropertyChanged event handler to the AppSettings instance
+            AppSettings.Instance.PropertyChanged += appSettings_PropertyChanged;
+
+            // Event handler to handle form closing events
+            this.FormClosing += (object sender, FormClosingEventArgs e) =>
             {
-                if (e.PropertyName == "ShowLogWindow")
+                // Dispose of the DLogger
+                SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
+                SMLog.Logger.Dispose();
+
+                // Dispose of the notifyIcon stuff
+                // NOTE: this code was retrieved from the DLogNet readme
+                notifyIcon_Main.Visible = false;
+                if (notifyIcon_Main.Icon != null)
                 {
-                    scMain.Panel2Collapsed = !AppSettings.Instance.ShowLogWindow;
-                    tsLabel_ShowHideLog.Text = scMain.Panel2Collapsed ? Properties.Resources.ShowLog : Properties.Resources.HideLog;
+                    notifyIcon_Main.Icon.Dispose(); // dispose of the icon to prevent memory leak
+                    notifyIcon_Main.Icon = null; // set to null to prevent further issues
                 }
+                notifyIcon_Main.Dispose();
+                Application.DoEvents();
             };
 
-            // load settings
-            // old method => leave here until we are sure we can delete it
-            Globals.Settings.LoadSettingsFromFile();
-            // load settings new method
-            FileTools.LoadSettingsFromFile();
 
-            // set app title
-            var strFormatVersion = "{0} (v{1} - {2})";
-#if INNORELEASE
-            strFormatVersion = "{0} (v{1} - {2} RELEASE)";
-#endif
-#if INNOBETA
-            strFormatVersion = "{0} (v{1} - {2} BETA)";
-#endif
-#if INNOBUILD
-            strFormatVersion = "{0} (v{1} - {2} BUILD)";
-#endif
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
 
-            if (Constants.DebugMode)
-                strFormatVersion = "{0} (v{1} - {2} DEBUG)";
+            ResetBottomToolStrip();
 
-            // Set the application title
-            Constants.AppTitle = String.Format(strFormatVersion, Constants.ApplicationName, Constants.CustomVersion(), AppSettings.Instance.MacMode ? "MAC" : "PC");
-            this.Text = Constants.AppTitle;
+
+
+
 
             // bring CFSM to the front on startup
             this.BringToFront();
             this.WindowState = AppSettings.Instance.FullScreen ? FormWindowState.Maximized : FormWindowState.Normal;
             this.Show(); // triggers Form.Shown event
 
-            // confirm and log App.config was properly loaded at runtime
-            var appConfigStatus = "<ERROR> Load Failed";
-            if (Convert.ToBoolean(ConfigurationSettings.AppSettings["key"]))
-                appConfigStatus = "Load Successful";
+            // Log app runtime environment
 
-            var assembly = Assembly.LoadFile(typeof(RocksmithToolkitLib.ToolkitVersion).Assembly.Location);
-            var assemblyConfiguration = assembly.GetCustomAttributes(typeof(AssemblyConfigurationAttribute), false).Cast<AssemblyConfigurationAttribute>().FirstOrDefault().Configuration.ToString() ?? "";
-            DateTime dtuLib = new DateTime();
 
-            try
-            {
-                dtuLib = DateTime.Parse(assemblyConfiguration, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
-            }
-            catch
-            {
-                // exception returns [1/1/0001 12:00:00 AM] 
-            }
 
-            // log application runtime environment
-            Globals.Log(String.Format("+ {0}", Constants.AppTitle));
-            Globals.Log(String.Format("+ OS {0} ({1} bit)", Environment.OSVersion, Environment.Is64BitOperatingSystem ? "64" : "32"));
-            Globals.Log(String.Format("+ .NET Framework (v{0})", SysExtensions.DotNetVersion));
-            Globals.Log(String.Format("+ CultureInfo ({0})", CultureInfo.CurrentCulture.ToString()));
-            Globals.Log(String.Format("+ Current Local DateTime [{0}]", DateTime.Now.ToString()));
-            Globals.Log(String.Format("+ Current UTC DateTime [{0}]", DateTime.UtcNow.ToString()));
-            Globals.Log(String.Format("+ RocksmithToolkitLib (v{0}) [{1}]", ToolkitVersion.RSTKLibVersion(), dtuLib));
-            Globals.Log(String.Format("+ Dynamic Difficulty Creator (v{0})", FileVersionInfo.GetVersionInfo(Path.Combine(ExternalApps.TOOLKIT_ROOT, ExternalApps.APP_DDC)).ProductVersion));
-            Globals.Log(String.Format("+ App.config Status ({0})", appConfigStatus));
-            Globals.Log(String.Format("+ System Display DPI Setting ({0})", GeneralExtension.GetDisplayDpi(this)));
-            Globals.Log(String.Format("+ System Display Screen Scale Factor ({0}%)", GeneralExtension.GetDisplayScalingFactor(this) * 100));
+
 
             // This was a great idea while RSTK lib was still regularly updated, but now has become a timebomb which breaks expired build, just as current & working builds 
             /*if (!ToolkitVersion.IsRSTKLibValid())
@@ -234,29 +212,106 @@ namespace CustomsForgeSongManager.Forms
                 {
                     // Display settings are adjusted using the above method
                     // We just need to log that we adjusted them
-                    Globals.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
+                    SMLog.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
                 }
 
                 // Save the settings after validation
-                //Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-                FileTools.SaveUserSettingsToFile();
-                FileTools.SaveDataGridViewSettingsToFile(Globals.DgvCurrent);
+                FileTools.SaveApplicationSettingsToFile();
+
+                // Set the first page shown to be the Settings tab
+                tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSettings);
+            }
+            else
+            {
+                // Set the first page shown to be the Song Manager tab
+                tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSongManager);
+            }
+        }
+
+        /// <summary>
+        /// Event handler for when the an AppSettings property changes value. 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void appSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case "ShowLogWindow":
+                    scMain.Panel2Collapsed = !AppSettings.Instance.ShowLogWindow;
+                    tsLabel_ShowHideLog.Text = scMain.Panel2Collapsed ? 
+                        Properties.Resources.ShowLog : Properties.Resources.HideLog;
+                    break;
+                case "EnableNotifications":
+                    if (AppSettings.Instance.EnableNotifications)
+                        SMLog.Logger.AddTargetNotifyIcon(notifyIcon_Main);
+                    else
+                        SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
+                    break;
+                default:
+                    break;
             }
 
-            // ???
-            if (AppSettings.Instance.EnableNotifications)
-                Globals.MyLog.AddTargetNotifyIcon(Globals.Notifier);
-            else
-                Globals.MyLog.RemoveTargetNotifyIcon(Globals.Notifier);
+        }
 
-            // enable/disable ProfileSongLists feature here
-            //if (!Constants.DebugMode)
-            //    tcMain.TabPages.RemoveByKey("tpProfileSongLists");
+        /// <summary>
+        /// Set the application title based on the version information.
+        /// </summary>
+        private void setApplicationTitle()
+        {
+            // Set the application title based on the version information
+            string strFormatVersion = "{0} (v{1} - {2})";
+#if INNORELEASE
+            strFormatVersion = "{0} (v{1} - {2} RELEASE)";
+#endif
+#if INNOBETA
+            strFormatVersion = "{0} (v{1} - {2} BETA)";
+#endif
+#if INNOBUILD
+            strFormatVersion = "{0} (v{1} - {2} BUILD)";
+#endif
 
-            // load Song Manager Tab
-            LoadSongManager();
+            if (Constants.DebugMode)
+                strFormatVersion = "{0} (v{1} - {2} DEBUG)";
 
-            //CustomsForgeSongManagerLib.Extensions.Benchmark(LoadSongManager, 1);
+            // Set the application title
+            string appTitle = String.Format(strFormatVersion, Constants.ApplicationName, Constants.CustomVersion(), AppSettings.Instance.MacMode ? "MAC" : "PC");
+            this.Text = appTitle;
+            Constants.AppTitle = appTitle;
+        }
+
+        /// <summary>
+        /// Log the application runtime environment.
+        /// </summary>
+        public void logApplicationRuntimeEnvironment()
+        {
+            DateTime dtuLib = new DateTime();
+            try
+            {
+
+                var assembly = Assembly.LoadFile(typeof(RocksmithToolkitLib.ToolkitVersion).Assembly.Location);
+                var assemblyConfiguration = assembly.GetCustomAttributes(typeof(AssemblyConfigurationAttribute), false).Cast<AssemblyConfigurationAttribute>().FirstOrDefault().Configuration.ToString() ?? "";
+                dtuLib = DateTime.Parse(assemblyConfiguration, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+            }
+            catch
+            {
+                // exception returns [1/1/0001 12:00:00 AM] 
+            }
+
+            // log application runtime environment
+            SMLog.Log(String.Format("+ {0}", Constants.AppTitle));
+            SMLog.Log(String.Format("+ OS {0} ({1} bit)", Environment.OSVersion, Environment.Is64BitOperatingSystem ? "64" : "32"));
+            SMLog.Log(String.Format("+ .NET Framework (v{0})", SysExtensions.DotNetVersion));
+            SMLog.Log(String.Format("+ CultureInfo ({0})", CultureInfo.CurrentCulture.ToString()));
+            SMLog.Log(String.Format("+ Current Local DateTime [{0}]", DateTime.Now.ToString()));
+            SMLog.Log(String.Format("+ Current UTC DateTime [{0}]", DateTime.UtcNow.ToString()));
+            SMLog.Log(String.Format("+ RocksmithToolkitLib (v{0}) [{1}]", ToolkitVersion.RSTKLibVersion(), dtuLib));
+            SMLog.Log(String.Format("+ Dynamic Difficulty Creator (v{0})", FileVersionInfo.GetVersionInfo(Path.Combine(ExternalApps.TOOLKIT_ROOT, ExternalApps.APP_DDC)).ProductVersion));
+            SMLog.Log(String.Format("+ System Display DPI Setting ({0})", GeneralExtension.GetDisplayDpi(this)));
+            SMLog.Log(String.Format("+ System Display Screen Scale Factor ({0}%)", GeneralExtension.GetDisplayScalingFactor(this) * 100));
+            
+            // SMLog.Log(String.Format("+ App.config Status ({0})", appConfigStatus));
+
         }
 
         /// <summary>
@@ -286,22 +341,15 @@ namespace CustomsForgeSongManager.Forms
         /// NOTE: The only thing that should be here is what's necessary to display the tab.
         /// NOTE: Displaying =/= Updating the tab's content; Updating the tab's content should be done by the tab/control itself.
         /// </summary>
-        private void LoadSongManager()
+        private void loadSongManagerTabPage()
         {
             SongManager songManager = null;
 
             // If the Song Manager is not already loaded, we need to load it.
-            if (!_tabPages.ContainsKey(typeof(SongManager)))
+            if (!_tabPageViews.ContainsKey(typeof(SongManager)))
             {
                 // Initialize the Song Manager tab panel (the view that appears when clicking on the Song Manager tab).
-                songManager = new SongManager(this);
-
-                // Initialize Song Manager's parameters
-                // TODO: eventually, this should all be inside its constructor
-                songManager.PlaySongFunction = playFunction;
-                songManager.Dock = DockStyle.Fill;
-                songManager.Location = UCLocation;
-                songManager.Size = UCSize;
+                songManager = new SongManager(this, playFunction, DockStyle.Fill, UCLocation, UCSize);
 
                 // Add it to Globals... for now
                 Globals.SongManager = songManager;
@@ -310,12 +358,12 @@ namespace CustomsForgeSongManager.Forms
                 tpSongManager.Controls.Add(songManager);
 
                 // Add it to the dictionary
-                _tabPages.Add(typeof(SongManager), songManager);
+                _tabPageViews.Add(typeof(SongManager), songManager);
             }
             else
             {
                 // If the Song Manager is already loaded, we just need to get it.
-                songManager = _tabPages[typeof(SongManager)] as SongManager;
+                songManager = _tabPageViews[typeof(SongManager)] as SongManager;
             }
 
             /*
@@ -336,11 +384,36 @@ namespace CustomsForgeSongManager.Forms
             // ==> eventually need to refactor this to only update what's necessary
             songManager.UpdateToolStrip();
 
-            // ???
-            if (AppSettings.Instance.FirstRun)
-                currentControl = Globals.Settings;
+            currentControl = songManager;
+        }
+
+        /// <summary>
+        /// Method to initialize and load the Settings tab.
+        /// </summary>
+        private void loadSettingsTabPage()
+        {
+            Settings settings = null;
+
+            // If the Settings tab is not already loaded, we need to load it.
+            if (!_tabPageViews.ContainsKey(typeof(Settings)))
+            {
+                // Initialize the Settings tab panel (the view that appears when clicking on the Settings tab).
+                settings = new Settings(this, UCLocation, UCSize, DockStyle.Fill);
+
+                // Add it to Globals... for now
+                //Globals.Settings = settings;
+
+                // Add it to the tab page that holds it
+                tpSettings.Controls.Add(settings);
+
+                // Add it to the dictionary
+                _tabPageViews.Add(typeof(Settings), settings);
+            }
             else
-                currentControl = Globals.SongManager;
+            {
+                // If the Song Manager is already loaded, we just need to get it.
+                settings = _tabPageViews[typeof(Settings)] as Settings;
+            }
         }
 
         private void ShowHelp()
@@ -374,12 +447,12 @@ namespace CustomsForgeSongManager.Forms
             AppSettings.Instance.WindowTop = this.Location.Y;
             AppSettings.Instance.WindowLeft = this.Location.X;
 
-            Globals.Log("Application is closing ...");
+            SMLog.Log("Application is closing ...");
             Globals.CancelBackgroundScan = true;
 
             if (Globals.Settings == null || Globals.SongManager == null)
             {
-                Globals.Log("<ERROR> Save on close failed ...");
+                SMLog.Log("<ERROR> Save on close failed ...");
                 return;
             }
 
@@ -387,7 +460,7 @@ namespace CustomsForgeSongManager.Forms
             {
                 // don't use the bulldozer here, instead use the bobcat
                 // 'My Documents/CFSM' may contain some original files
-                Globals.Log("User selected Clean On Closing ...");
+                SMLog.Log("User selected Clean On Closing ...");
                 GenExtensions.DeleteFile(Constants.LogFilePath);
                 GenExtensions.DeleteFile(Constants.SongsInfoPath);
                 GenExtensions.DeleteFile(Constants.AppSettingsPath);
@@ -424,7 +497,7 @@ namespace CustomsForgeSongManager.Forms
                 }
             }
 
-            Globals.Log("Application closed normally ...");
+            SMLog.Log("Application closed normally ...");
         }
 
         private void frmMain_KeyDown(object sender, KeyEventArgs e)
@@ -467,7 +540,8 @@ namespace CustomsForgeSongManager.Forms
             var debugMe = sender;
 
             // reset toolstrip globals
-            Globals.ResetToolStripGlobals();
+            //Globals.ResetToolStripGlobals();
+            ResetBottomToolStrip();
 
             // quick fix ... visible on when Song Manager is active
             // avoids playback issues when other tabs are active 
@@ -488,7 +562,7 @@ namespace CustomsForgeSongManager.Forms
                 // passing variables(objects) by value to UControl
                 // processing order is important to prevent flashing/jumping display
                 case "Song Manager":
-                    LoadSongManager();
+                    loadSongManagerTabPage();
                     break;
                 case "Arrangement Analyzer":
                     // don't reload grid if already loaded
@@ -556,6 +630,7 @@ namespace CustomsForgeSongManager.Forms
                     currentControl = Globals.SongPacks;
                     break;
                 case "Settings":
+                    loadSettingsTabPage();
                     tpSettings.Controls.Clear();
                     tpSettings.Controls.Add(Globals.Settings);
                     Globals.Settings.Dock = DockStyle.Fill;
@@ -647,12 +722,12 @@ namespace CustomsForgeSongManager.Forms
             {
                 if (AppSettings.Instance.EnableAutoUpdate)
                 {
-                    Globals.Log("CFSM Auto Update Enabled ...");
+                    SMLog.Log("CFSM Auto Update Enabled ...");
                     UpdateCFSM();
                 }
                 else
                 {
-                    Globals.Log("CFSM Update Available ...");
+                    SMLog.Log("CFSM Update Available ...");
                     tsBtnUpdate.Visible = true;
                 }
             }
@@ -663,7 +738,7 @@ namespace CustomsForgeSongManager.Forms
 
         private void UpdateCFSM()
         {
-            Globals.Log("Downloading WebApp: " + APP_ARCHIVE + " ...");
+            SMLog.Log("Downloading WebApp: " + APP_ARCHIVE + " ...");
             var tempDir = Constants.TempWorkFolder;
             var downloadUrl = string.Format("{0}/{1}", SERVER_URL, APP_ARCHIVE);
 
@@ -883,12 +958,12 @@ namespace CustomsForgeSongManager.Forms
                     using (StreamWriter file = new StreamWriter(path, false, Encoding.Unicode)) // Excel does not recognize UTF8
                         file.Write(sbCSV.ToString());
 
-                    Globals.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
+                    SMLog.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
                     GenExtensions.PromptOpen(Path.GetDirectoryName(path), Globals.DgvCurrent.Name + " data saved ...");
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log("<Error>: " + ex.Message);
+                    SMLog.Log("<Error>: " + ex.Message);
                 }
             });
         }
@@ -954,12 +1029,12 @@ namespace CustomsForgeSongManager.Forms
                     using (StreamWriter fs = new StreamWriter(path))
                         dS.WriteXml(fs);
 
-                    Globals.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
+                    SMLog.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
                     GenExtensions.PromptOpen(Path.GetDirectoryName(path), Globals.DgvCurrent.Name + " data saved ...");
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log("<Error>: " + ex.Message);
+                    SMLog.Log("<Error>: " + ex.Message);
                 }
             });
         }
@@ -1015,12 +1090,12 @@ namespace CustomsForgeSongManager.Forms
                     using (StreamWriter fs = new StreamWriter(path))
                         fs.Write(serializedJson.ToString());
 
-                    Globals.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
+                    SMLog.Log(Globals.DgvCurrent.Name + " data saved to:" + path);
                     GenExtensions.PromptOpen(Path.GetDirectoryName(path), Globals.DgvCurrent.Name + " data saved ...");
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log("<Error>: " + ex.Message);
+                    SMLog.Log("<Error>: " + ex.Message);
                 }
             });
         }
@@ -1085,15 +1160,15 @@ namespace CustomsForgeSongManager.Forms
             if (Globals.AudioEngine.IsPaused() || Globals.AudioEngine.IsPlaying())
             {
                 if (Globals.AudioEngine.IsPlaying())
-                    Globals.Log("Playback Paused ...");
+                    SMLog.Log("Playback Paused ...");
                 else
-                    Globals.Log("Playback Unpaused ...");
+                    SMLog.Log("Playback Unpaused ...");
 
                 Globals.AudioEngine.Pause();
             }
             else
             {
-                Globals.Log("Playback Started ...");
+                SMLog.Log("Playback Started ...");
                 Globals.SongManager.PlaySelectedSong();
             }
 
@@ -1116,7 +1191,7 @@ namespace CustomsForgeSongManager.Forms
         {
             tslblTimer.Text = "00:00";
             tspbAudioPosition.Value = 0;
-            Globals.Log("Playback Stopped ...");
+            SMLog.Log("Playback Stopped ...");
             Globals.AudioEngine.Stop();
             timerAudioProgress.Enabled = (Globals.AudioEngine.IsPlaying());
         }
@@ -1131,7 +1206,7 @@ namespace CustomsForgeSongManager.Forms
 
             if (Globals.AudioEngine.IsLoaded())
             {
-                Globals.Log("Playback Seeking ...");
+                SMLog.Log("Playback Seeking ...");
                 var pos = (float)e.Location.X / (float)tspbAudioPosition.Width;
                 Globals.AudioEngine.Seek(pos * Globals.AudioEngine.GetSongLength());
             }

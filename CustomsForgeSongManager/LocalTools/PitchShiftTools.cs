@@ -138,7 +138,7 @@ namespace CustomsForgeSongManager.LocalTools
             foreach (var srcFilePath in srcFilePaths)
             {
                 var isSkipped = false;
-                Globals.Log("Processing: " + Path.GetFileName(srcFilePath));
+                SMLog.Log("Processing: " + Path.GetFileName(srcFilePath));
                 processed++;
                 GenericWorker.ReportProgress(processed, total, skipped, failed);
 
@@ -147,14 +147,14 @@ namespace CustomsForgeSongManager.LocalTools
                 {
                     if (isOfficialRepairedDisabled.Contains("Official")) // && Globals.PublicRelease) // developer testing mode
                     {
-                        Globals.Log(" - Skipped ODLC File");
+                        SMLog.Log(" - Skipped ODLC File");
                         skipped++;
                         isSkipped = true;
                     }
 
                     if (isOfficialRepairedDisabled.Contains("Disabled"))
                     {
-                        Globals.Log(" - Skipped Disabled File");
+                        SMLog.Log(" - Skipped Disabled File");
                         skipped++;
                         isSkipped = true;
                     }
@@ -166,7 +166,7 @@ namespace CustomsForgeSongManager.LocalTools
                     {
                         // TODO: consider using tone exception handler from RepairTools
                         // Try unpacking and if it throws InvalidDataException - fix arrangement XMLs
-                        Globals.Log(" - Extracting CDLC artifacts");
+                        SMLog.Log(" - Extracting CDLC artifacts");
                         DLCPackageData packageData = PackageDataTools.GetDataWithFixedTones(srcFilePath);
 
                         // this allows user to reapply pitch shifter using latest code
@@ -175,7 +175,7 @@ namespace CustomsForgeSongManager.LocalTools
                             var packageComment = packageData.ToolkitInfo.PackageComment;
                             if (!String.IsNullOrEmpty(packageComment) && packageComment.Contains(Constants.TKI_PITCHSHIFT))
                             {
-                                Globals.Log(" - Song is already pitch shifted");
+                                SMLog.Log(" - Song is already pitch shifted");
                                 skipped++;
                                 isSkipped = true;
                             }
@@ -205,14 +205,14 @@ namespace CustomsForgeSongManager.LocalTools
 
                         if (!overwriteFile)
                         {
-                            Globals.Log(" - Adding pitch shifting effect to a new CDLC file");
+                            SMLog.Log(" - Adding pitch shifting effect to a new CDLC file");
                             finalPath = srcFilePath.Replace(Constants.EnabledExtension, ext + Constants.EnabledExtension);
                         }
                         else
-                            Globals.Log(" - Adding pitch shifting effect to existing file");
+                            SMLog.Log(" - Adding pitch shifting effect to existing file");
 
-                        Globals.Log(" - Repackaging");
-                        Globals.Log(" - Please wait this could take a minute ...");
+                        SMLog.Log(" - Repackaging");
+                        SMLog.Log(" - Please wait this could take a minute ...");
 
                         using (var psarcNew = new PsarcPackager(true))
                             psarcNew.WritePackage(finalPath, packageData, srcFilePath);
@@ -228,12 +228,12 @@ namespace CustomsForgeSongManager.LocalTools
                             }
                         }
 
-                        Globals.Log(" - Pitch shifting was successful");
+                        SMLog.Log(" - Pitch shifting was successful");
                     }
 
                     catch (Exception ex)
                     {
-                        Globals.Log(" - Pitch shifting failed: " + ex.Message);
+                        SMLog.Log(" - Pitch shifting failed: " + ex.Message);
                         failed++;
                     }
                 }
@@ -249,7 +249,7 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (processed > 0)
             {
-                Globals.Log("CDLC pitch shifting completed ...");
+                SMLog.Log("CDLC pitch shifting completed ...");
                 Globals.ReloadSongManager = true; // set quick reload flag
 
                 if (!Constants.DebugMode)
@@ -259,7 +259,7 @@ namespace CustomsForgeSongManager.LocalTools
             }
             else
             {
-                Globals.Log("No CDLC were pitch shifted ...");
+                SMLog.Log("No CDLC were pitch shifted ...");
                 return false;
             }
 

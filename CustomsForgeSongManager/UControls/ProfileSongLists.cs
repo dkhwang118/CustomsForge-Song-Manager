@@ -59,10 +59,10 @@ namespace CustomsForgeSongManager.UControls
 
         public void PopulateProfileSongLists()
         {
-            Globals.Log("Populating Profile Song Lists GUI ...");
+            SMLog.Log("Populating Profile Song Lists GUI ...");
             DgvExtensions.DoubleBuffered(dgvSongListMaster);
             Globals.Settings.LoadSettingsFromFile(dgvSongListMaster, true);
-            Globals.Log("Profile Song Lists GUI Activated ...");
+            SMLog.Log("Profile Song Lists GUI Activated ...");
 
             dlcDir = Constants.Rs2DlcFolder;
             cdlcDir = Path.Combine(dlcDir, "CDLC").ToLower();
@@ -85,7 +85,7 @@ namespace CustomsForgeSongManager.UControls
             Globals.RescanProfileSongLists = true;
             // reset now to prevent possible endless loop
             Globals.PrfldbNeedsUpdate = false;
-            Globals.Log("Updating User Profile Song Lists ...");
+            SMLog.Log("Updating User Profile Song Lists ...");
 
             // auto update the user profile song lists
             string output = String.Empty;
@@ -110,7 +110,7 @@ namespace CustomsForgeSongManager.UControls
                 }
 
                 result = "<WARNING> User Profile Song Lists are in Manual Update Mode ...";
-                Globals.Log(result);
+                SMLog.Log(result);
                 output += Environment.NewLine + result;
             }
 
@@ -121,19 +121,19 @@ namespace CustomsForgeSongManager.UControls
 
                 // update modified in-game SongLists
                 result = " - Writing User Profile Song Lists ...";
-                Globals.Log(result);
+                SMLog.Log(result);
                 output += Environment.NewLine + result;
                 var results = WriteSongLists();
                 var lines = results.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToList();
                 foreach (var line in lines)
-                    Globals.Log(line.TrimEnd());
+                    SMLog.Log(line.TrimEnd());
 
                 output += Environment.NewLine + results;
             }
             else
             {
                 result = "<ERROR> Invalid _prfldb path";
-                Globals.Log(result);
+                SMLog.Log(result);
                 output += Environment.NewLine + result;
             }
 
@@ -142,20 +142,20 @@ namespace CustomsForgeSongManager.UControls
                 // using the _prfldb file for last modified information to syncronize
                 // LocalProfiles.json LastModified element and update RemoteCache.vdf 
                 result = " - Syncronizing Files ...";
-                Globals.Log(result);
+                SMLog.Log(result);
                 output += Environment.NewLine + UserProfiles.SyncronizeFiles(_localProfilesPath, _prfldbPath);
             }
             else
             {
                 result = "<ERROR> Invalid LocalProfiles path";
-                Globals.Log(result);
+                SMLog.Log(result);
                 output += Environment.NewLine + result;
             }
 
             if (output.Contains("<ERROR>"))
                 BetterDialog2.ShowDialog(output.TrimEnd(), "<ERROR> Updating User Profile Song Lists ...", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 0);
             else
-                Globals.Log("Completed Updating User Profile Song Lists ...");
+                SMLog.Log("Completed Updating User Profile Song Lists ...");
         }
 
         public void UpdateToolStrip()
@@ -251,8 +251,8 @@ namespace CustomsForgeSongManager.UControls
 
             if (!File.Exists(_prfldbPath))
             {
-                Globals.Log("<ERROR> Could not find In-Game Song Lists ...");
-                Globals.Log(" - " + _prfldbPath);
+                SMLog.Log("<ERROR> Could not find In-Game Song Lists ...");
+                SMLog.Log(" - " + _prfldbPath);
                 return;
             }
 
@@ -262,8 +262,8 @@ namespace CustomsForgeSongManager.UControls
                 _playerName = UserProfiles.GetPlayerName(_localProfilesPath, _prfldbPath);
             }
 
-            Globals.Log("Loading In-Game Song Lists ...");
-            Globals.Log(" - " + _prfldbPath);
+            SMLog.Log("Loading In-Game Song Lists ...");
+            SMLog.Log(" - " + _prfldbPath);
             // make complete backup of user profile files in case something goes wrong
             var timestamp = DateTime.Now.ToString("yyyyMMddTHHmmss"); // use ISO8601 format
             var backupFileName = String.Format("ProfileBackup_{0}.zip", timestamp);
@@ -350,11 +350,11 @@ namespace CustomsForgeSongManager.UControls
                         return profileFiles[0];
                 }
                 else
-                    Globals.Log("Could not find profile folder!");
+                    SMLog.Log("Could not find profile folder!");
             }
             catch (IOException ioex)
             {
-                Globals.Log(String.Format("Could not find Steam profiles folder: {0}", ioex.Message));
+                SMLog.Log(String.Format("Could not find Steam profiles folder: {0}", ioex.Message));
             }
 
             return string.Empty;
@@ -380,9 +380,9 @@ namespace CustomsForgeSongManager.UControls
 
             var remoteDirPath = Path.GetDirectoryName(_prfldbPath);
             AppSettings.Instance.RSProfileDir = remoteDirPath;
-            Globals.Log("User Profile Directory changed to: " + remoteDirPath);
+            SMLog.Log("User Profile Directory changed to: " + remoteDirPath);
             AppSettings.Instance.RSProfilePath = _prfldbPath;
-            Globals.Log("Loading User Profile for PlayerName: " + _playerName);
+            SMLog.Log("Loading User Profile for PlayerName: " + _playerName);
             LoadGameSongLists();
         }
 
@@ -542,7 +542,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (Globals.WorkerFinished == Globals.Tristate.Cancelled)
             {
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 return;
             }
 
@@ -603,7 +603,7 @@ namespace CustomsForgeSongManager.UControls
                     SongData sd = songListSongs.FirstOrDefault(x => x.DLCKey == song.DLCKey);
                     if (sd != null)
                     {
-                        Globals.Log(" - SongList " + curSongListsName + " already contains " + song.FileName);
+                        SMLog.Log(" - SongList " + curSongListsName + " already contains " + song.FileName);
                         break;
                     }
 
@@ -1225,7 +1225,7 @@ namespace CustomsForgeSongManager.UControls
             var filterStatus = DataGridViewAutoFilterColumnHeaderCell.GetFilterStatus(dgvSongListMaster);
             if (!bindingCompleted)
             {
-                // Globals.Log("DataBinding Complete ... ");
+                // SMLog.Log("DataBinding Complete ... ");
                 bindingCompleted = true;
                 // filter applied
                 if (!String.IsNullOrEmpty(filterStatus))
@@ -1253,7 +1253,7 @@ namespace CustomsForgeSongManager.UControls
             if (bindingCompleted && !dgvPainted)
             {
                 dgvPainted = true;
-                // Globals.Log("dgvSongs Painted ... ");
+                // SMLog.Log("dgvSongs Painted ... ");
             }
         }
 
@@ -1295,7 +1295,7 @@ namespace CustomsForgeSongManager.UControls
             Globals.DgvCurrent = dgvSongListMaster;
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             statusSongListMaster.RestoreSorting(Globals.DgvCurrent);
-            Globals.Log("Profile Song List GUI Activated...");
+            SMLog.Log("Profile Song List GUI Activated...");
         }
 
         public void TabLeave()
@@ -1304,7 +1304,7 @@ namespace CustomsForgeSongManager.UControls
             statusSongListMaster.SaveSorting(Globals.DgvCurrent);
             GetGrid().ResetBindings(); // force grid data to rebind/refresh
             Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
-            Globals.Log("Profile Song Lists GUI Deactivated ...");
+            SMLog.Log("Profile Song Lists GUI Deactivated ...");
         }
 
         private void cmsExportSongList_Click(object sender, EventArgs e)
@@ -1373,12 +1373,12 @@ namespace CustomsForgeSongManager.UControls
                     using (StreamWriter file = new StreamWriter(path, false, Encoding.Unicode))
                         file.Write(sbCSV.ToString());
 
-                    Globals.Log("Song list data saved to:" + "");
+                    SMLog.Log("Song list data saved to:" + "");
                     GenExtensions.PromptOpen(Path.GetDirectoryName(path), "Song list saved...");
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log("<Error>: " + ex.Message);
+                    SMLog.Log("<Error>: " + ex.Message);
                 }
             }
         }

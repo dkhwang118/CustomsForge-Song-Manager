@@ -113,7 +113,7 @@ namespace CustomsForgeSongManager.LocalTools
         {
             if (!Globals.PackageRatingNeedsUpdate)
             {
-                Globals.Log("No PackageRating updates to process ...");
+                SMLog.Log("No PackageRating updates to process ...");
                 Globals.UpdateInProgress = false;
                 return;
             }
@@ -135,7 +135,7 @@ namespace CustomsForgeSongManager.LocalTools
                         DLCPackageCreator.GenerateToolkitVersion(toolkitVersionStream, sd.PackageAuthor, sd.PackageVersion, sd.PackageComment, sd.PackageRating, sd.ToolkitVersion);
                         PsarcExtensions.InjectArchiveEntry(sd.FilePath, "toolkit.version", toolkitVersionStream);
                         toolkitVersionStream.Dispose(); // CRITICAL
-                        Globals.Log("Updated PackageRating in: " + sd.FileName + " ...");
+                        SMLog.Log("Updated PackageRating in: " + sd.FileName + " ...");
                     }
 
                     // reset song UpdateRating
@@ -152,14 +152,14 @@ namespace CustomsForgeSongManager.LocalTools
             catch (Exception ex)
             {
                 CloseUpdaterWindow();
-                Globals.Log("<ERROR> PackageRating updates failed ...");
-                Globals.Log(" - " + ex.Message);
+                SMLog.Log("<ERROR> PackageRating updates failed ...");
+                SMLog.Log(" - " + ex.Message);
                 Globals.UpdateInProgress = false;
                 return;
             }
 
             CloseUpdaterWindow();
-            Globals.Log("PackageRating updates completed successfully ...");
+            SMLog.Log("PackageRating updates completed successfully ...");
             Globals.UpdateInProgress = false;
             Globals.PackageRatingNeedsUpdate = false;
             // only need to reload the grid where PackageRating is displayed
@@ -173,9 +173,9 @@ namespace CustomsForgeSongManager.LocalTools
         public static void ShowPackageRatingWarning()
         {
             // wait for any PackageRating updates to finish
-            Globals.Log("<CRITICAL WARNING> CDLC PackageRating updates are in progress ...");
-            Globals.Log("<CRITICAL WARNING> DO NOT ATTEMPT TO EXIT CFSM ... ");
-            Globals.Log("<CRITICAL WARNING> SEVERE CDLC DAMAGE WILL RESULT ...");
+            SMLog.Log("<CRITICAL WARNING> CDLC PackageRating updates are in progress ...");
+            SMLog.Log("<CRITICAL WARNING> DO NOT ATTEMPT TO EXIT CFSM ... ");
+            SMLog.Log("<CRITICAL WARNING> SEVERE CDLC DAMAGE WILL RESULT ...");
             Application.DoEvents(); // keep GUI responsive
 
             // show nice popup warning message

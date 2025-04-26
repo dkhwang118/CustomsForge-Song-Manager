@@ -14,6 +14,7 @@ using CustomsForgeSongManager.UControls;
 using RocksmithToolkitLib.PSARC;
 using System.Xml;
 using System.Diagnostics;
+using DLogNet;
 
 namespace CustomsForgeSongManager.LocalTools
 {
@@ -21,12 +22,12 @@ namespace CustomsForgeSongManager.LocalTools
     {
         public static void ArchiveFiles(string srcExt, string srcFolder, bool srcDelete = false)
         {
-            Globals.Log("Archiving  [" + srcExt + "] files ...");
+            SMLog.Log("Archiving  [" + srcExt + "] files ...");
 
             var srcFilePaths = Directory.EnumerateFiles(srcFolder, "*" + srcExt + "*").ToList();
             if (!srcFilePaths.Any())
             {
-                Globals.Log("No files to archive: " + srcFolder);
+                SMLog.Log("No files to archive: " + srcFolder);
                 return;
             }
 
@@ -48,7 +49,7 @@ namespace CustomsForgeSongManager.LocalTools
             try
             {
                 if (ZipUtilities.ZipDirectory(srcFolder, Path.Combine(Constants.RemasteredArcFolder, fileName)))
-                    Globals.Log("Archive saved to: " + Path.Combine(Constants.RemasteredArcFolder, fileName));
+                    SMLog.Log("Archive saved to: " + Path.Combine(Constants.RemasteredArcFolder, fileName));
                 else
                     throw new IOException();
 
@@ -60,8 +61,8 @@ namespace CustomsForgeSongManager.LocalTools
             }
             catch (IOException ex)
             {
-                Globals.Log("<ERROR> Archiving failed ...");
-                Globals.Log(ex.Message);
+                SMLog.Log("<ERROR> Archiving failed ...");
+                SMLog.Log(ex.Message);
             }
         }
 
@@ -104,12 +105,12 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (isUndo)
             {
-                Globals.Log("Restoring CDLC files to 'dlc/cdlc' folder ...");
+                SMLog.Log("Restoring CDLC files to 'dlc/cdlc' folder ...");
                 if (!Directory.Exists(Constants.Rs2CdlcFolder))
                     Directory.CreateDirectory(Constants.Rs2CdlcFolder);
             }
             else
-                Globals.Log("Organizing CDLC into artist name folders ...");
+                SMLog.Log("Organizing CDLC into artist name folders ...");
 
             var total = selectedSongs.Count();
             int processed = 0, failed = 0, skipped = 0;
@@ -118,7 +119,7 @@ namespace CustomsForgeSongManager.LocalTools
             foreach (var songInfo in selectedSongs)
             {
                 var srcFilePath = songInfo.FilePath;
-                Globals.Log(" - Processing: " + Path.GetFileName(srcFilePath));
+                SMLog.Log(" - Processing: " + Path.GetFileName(srcFilePath));
                 processed++;
                 GenericWorker.ReportProgress(processed, total, skipped, failed);
 
@@ -171,11 +172,11 @@ namespace CustomsForgeSongManager.LocalTools
                 catch (Exception ex)
                 {
                     if (isUndo)
-                        Globals.Log("<ERROR> Failed to restore CDLC: " + srcFilePath);
+                        SMLog.Log("<ERROR> Failed to restore CDLC: " + srcFilePath);
                     else
-                        Globals.Log("<ERROR> Failed to organized CDLC: " + srcFilePath);
+                        SMLog.Log("<ERROR> Failed to organized CDLC: " + srcFilePath);
 
-                    Globals.Log(" - " + ex.Message);
+                    SMLog.Log(" - " + ex.Message);
                     failed++;
                 }
             }
@@ -188,16 +189,16 @@ namespace CustomsForgeSongManager.LocalTools
                 new DirectoryInfo(dlcDir).DeleteEmptyDirs();
 
                 if (isUndo)
-                    Globals.Log("Sucessully restored CDLC files to 'dlc/cdlc' folder and removed empty artist name folders ...");
+                    SMLog.Log("Sucessully restored CDLC files to 'dlc/cdlc' folder and removed empty artist name folders ...");
                 else
-                    Globals.Log("Sucessully organized and renamed CDLC into artist name folders ...");
+                    SMLog.Log("Sucessully organized and renamed CDLC into artist name folders ...");
             }
         }
 
         public static void CleanDlcFolder()
         {
             // remove any .bak, .org, .max and .cor files from dlc folder and subfolders
-            Globals.Log("Cleaning 'dlc' folder and subfolders ...");
+            SMLog.Log("Cleaning 'dlc' folder and subfolders ...");
             string[] extensions = { Constants.EXT_BAK, Constants.EXT_COR, Constants.EXT_DUP, Constants.EXT_MAX, Constants.EXT_ORG };
             var extFilePaths = Directory.EnumerateFiles(Constants.Rs2DlcFolder, "*.*", SearchOption.AllDirectories).Where(fi => extensions.Any(fi.ToLower().Contains)).ToList();
 
@@ -224,7 +225,7 @@ namespace CustomsForgeSongManager.LocalTools
                 else
                 {
                     // JIC ... this should never happen
-                    Globals.Log("<WARNING> Unexpected file type: " + extFilePath);
+                    SMLog.Log("<WARNING> Unexpected file type: " + extFilePath);
                     skipped++;
                     continue;
                 }
@@ -235,11 +236,11 @@ namespace CustomsForgeSongManager.LocalTools
                     if (!File.Exists(destFilePath))
                     {
                         GenExtensions.CopyFile(extFilePath, destFilePath, true, false);
-                        Globals.Log("Moved file to: " + destFilePath);
+                        SMLog.Log("Moved file to: " + destFilePath);
                     }
                     else
                     {
-                        Globals.Log("Deleted duplicate file: " + extFilePath);
+                        SMLog.Log("Deleted duplicate file: " + extFilePath);
                         skipped++;
                     }
 
@@ -248,8 +249,8 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log("<ERROR> Move File Failed: " + extFilePath + " ...");
-                    Globals.Log(ex.Message);
+                    SMLog.Log("<ERROR> Move File Failed: " + extFilePath + " ...");
+                    SMLog.Log(ex.Message);
                     failed++;
                 }
             }
@@ -264,10 +265,10 @@ namespace CustomsForgeSongManager.LocalTools
             if (processed > 0)
             {
                 Globals.RescanSongManager = true;
-                Globals.Log("Finished cleaning 'dlc' folder and subfolders ...");
+                SMLog.Log("Finished cleaning 'dlc' folder and subfolders ...");
             }
             else
-                Globals.Log("The 'dlc' folder and subfolders didn't need cleaning ...");
+                SMLog.Log("The 'dlc' folder and subfolders didn't need cleaning ...");
         }
 
         public static bool CreateBackupOfType(string srcFilePath, string destFolder, string backupExt)
@@ -279,23 +280,23 @@ namespace CustomsForgeSongManager.LocalTools
 
                 if (srcFilePath.Contains(Constants.RS1COMP))
                 {
-                    Globals.Log(" - Can not backup individual RS1 Compatiblity DLC ...");
+                    SMLog.Log(" - Can not backup individual RS1 Compatiblity DLC ...");
                     return false;
                 }
 
                 if (!File.Exists(destFilePath))
                 {
                     GenExtensions.CopyFile(srcFilePath, destFilePath, false);
-                    Globals.Log(" - Successfully created backup ..."); // a good thing
+                    SMLog.Log(" - Successfully created backup ..."); // a good thing
                 }
                 else
-                    Globals.Log(" - Backup already exists ..."); // also a good thing
+                    SMLog.Log(" - Backup already exists ..."); // also a good thing
             }
             catch (Exception ex)
             {
                 // it is critical that backup of originals was successful before proceeding
-                Globals.Log(" - <ERROR> Backup failed ..."); // a bad thing
-                Globals.Log(ex.Message);
+                SMLog.Log(" - <ERROR> Backup failed ..."); // a bad thing
+                SMLog.Log(ex.Message);
                 return false;
             }
 
@@ -305,9 +306,9 @@ namespace CustomsForgeSongManager.LocalTools
         public static bool CreateBackupOfType(List<SongData> songs, string destFolder, string backupExt, bool isBackup = true)
         {
             if (isBackup)
-                Globals.Log("Backing up selected CDLC files ...");
+                SMLog.Log("Backing up selected CDLC files ...");
             else
-                Globals.Log("Moving selected CDLC files ...");
+                SMLog.Log("Moving selected CDLC files ...");
 
             VerifyCfsmFolders();
             var srcFilePaths = SongFilePaths(songs);
@@ -317,7 +318,7 @@ namespace CustomsForgeSongManager.LocalTools
 
             foreach (var srcFilePath in srcFilePaths)
             {
-                Globals.Log("Processing File: " + Path.GetFileName(srcFilePath));
+                SMLog.Log("Processing File: " + Path.GetFileName(srcFilePath));
                 processed++;
                 GenericWorker.ReportProgress(processed, total, skipped, failed);
 
@@ -328,25 +329,25 @@ namespace CustomsForgeSongManager.LocalTools
 
                     if (srcFilePath.Contains(Constants.RS1COMP))
                     {
-                        Globals.Log(" - Can not process individual RS1 Compatiblity DLC");
+                        SMLog.Log(" - Can not process individual RS1 Compatiblity DLC");
                         ++skipped;
                     }
                     else if (!File.Exists(destFilePath))
                     {
                         GenExtensions.CopyFile(srcFilePath, destFilePath, false);
-                        Globals.Log(" - Successfully processed file"); // a good thing
+                        SMLog.Log(" - Successfully processed file"); // a good thing
                     }
                     else
                     {
-                        Globals.Log(" - File already exists"); // also a good thing
+                        SMLog.Log(" - File already exists"); // also a good thing
                         skipped++;
                     }
                 }
                 catch (Exception ex)
                 {
                     // it is critical that backup of originals was successful before proceeding
-                    Globals.Log(" - <ERROR> CreateBackupOfType method failed ..."); // a bad thing
-                    Globals.Log(ex.Message);
+                    SMLog.Log(" - <ERROR> CreateBackupOfType method failed ..."); // a bad thing
+                    SMLog.Log(ex.Message);
                     failed++;
                 }
 
@@ -359,22 +360,22 @@ namespace CustomsForgeSongManager.LocalTools
             if (processed > 0)
             {
                 if (isBackup)
-                    Globals.Log("Finished backing up selected files ...");
+                    SMLog.Log("Finished backing up selected files ...");
                 else
-                    Globals.Log("Finished moving selected files ...");
+                    SMLog.Log("Finished moving selected files ...");
 
-                Globals.Log("Files saved to: " + destFolder);
+                SMLog.Log("Files saved to: " + destFolder);
                 return true;
             }
 
-            Globals.Log("No files processed ...");
+            SMLog.Log("No files processed ...");
             return false;
         }
 
         public static void DeleteFiles(List<SongData> songs, bool verbose = true)
         {
             if (verbose)
-                Globals.Log("Deleting selected CDLC files ...");
+                SMLog.Log("Deleting selected CDLC files ...");
 
             var srcFilePaths = SongFilePaths(songs);
             var total = srcFilePaths.Count;
@@ -384,7 +385,7 @@ namespace CustomsForgeSongManager.LocalTools
             foreach (var srcFilePath in srcFilePaths)
             {
                 if (verbose)
-                    Globals.Log("Processing File: " + Path.GetFileName(srcFilePath));
+                    SMLog.Log("Processing File: " + Path.GetFileName(srcFilePath));
 
                 processed++;
                 GenericWorker.ReportProgress(processed, total, skipped, failed);
@@ -394,12 +395,12 @@ namespace CustomsForgeSongManager.LocalTools
                     GenExtensions.DeleteFile(srcFilePath);
 
                     if (verbose)
-                        Globals.Log(" - Successfully deleted file"); // a good thing
+                        SMLog.Log(" - Successfully deleted file"); // a good thing
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log(" - <ERROR> Deletion failed ..."); // a bad thing
-                    Globals.Log(ex.Message);
+                    SMLog.Log(" - <ERROR> Deletion failed ..."); // a bad thing
+                    SMLog.Log(ex.Message);
                     failed++;
                 }
             }
@@ -409,9 +410,9 @@ namespace CustomsForgeSongManager.LocalTools
             if (verbose)
             {
                 if (processed > 0)
-                    Globals.Log("Finished deleting files ...");
+                    SMLog.Log("Finished deleting files ...");
                 else
-                    Globals.Log("No files deleted ...");
+                    SMLog.Log("No files deleted ...");
             }
         }
 
@@ -429,10 +430,10 @@ namespace CustomsForgeSongManager.LocalTools
 
                 // copy but don't delete [.org]
                 if (GenExtensions.CopyFile(srcFilePath, destFilePath, true, false))
-                    Globals.Log(" - Successfully restored file: " + Path.GetFileName(srcFilePath));
+                    SMLog.Log(" - Successfully restored file: " + Path.GetFileName(srcFilePath));
                 else
                 {
-                    Globals.Log(" - <ERROR> Could not restore file: " + Path.GetFileName(srcFilePath));
+                    SMLog.Log(" - <ERROR> Could not restore file: " + Path.GetFileName(srcFilePath));
                     destFilePath = String.Empty;
                 }
 
@@ -441,8 +442,8 @@ namespace CustomsForgeSongManager.LocalTools
             catch (Exception ex)
             {
                 // this should never happen but just in case
-                Globals.Log(" - <ERROR> Restore [" + Constants.EXT_ORG + "] failed ...");
-                Globals.Log(ex.Message);
+                SMLog.Log(" - <ERROR> Restore [" + Constants.EXT_ORG + "] failed ...");
+                SMLog.Log(ex.Message);
                 return String.Empty;
             }
         }
@@ -497,7 +498,7 @@ namespace CustomsForgeSongManager.LocalTools
 
         public static void RestoreBackups(string backupExt, string backupFolder)
         {
-            Globals.Log("Restoring [" + backupExt + "] CDLC ...");
+            SMLog.Log("Restoring [" + backupExt + "] CDLC ...");
             // get contents of backup folder
             var bakFilePaths = Directory.EnumerateFiles(backupFolder, "*" + backupExt + "*").ToList();
             // get contents of 'dlc' folder for comparison
@@ -531,12 +532,12 @@ namespace CustomsForgeSongManager.LocalTools
 
                     // copy but don't delete bakExt
                     GenExtensions.CopyFile(bakFilePath, dlcFilePath, true, false);
-                    Globals.Log("Successfully Restored: " + Path.GetFileName(dlcFilePath));
+                    SMLog.Log("Successfully Restored: " + Path.GetFileName(dlcFilePath));
                 }
                 catch (IOException ex)
                 {
-                    Globals.Log(ex.Message);
-                    Globals.Log("<ERROR> Could Not Restore: " + Path.GetFileName(dlcFilePath));
+                    SMLog.Log(ex.Message);
+                    SMLog.Log("<ERROR> Could Not Restore: " + Path.GetFileName(dlcFilePath));
                     failed++;
                 }
             }
@@ -545,11 +546,11 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (processed > 0)
             {
-                Globals.Log("CDLC backups with extension [" + backupExt + "] were restored to original location in 'dlc' folder ...");
+                SMLog.Log("CDLC backups with extension [" + backupExt + "] were restored to original location in 'dlc' folder ...");
                 Globals.RescanSongManager = true;
             }
             else
-                Globals.Log("No CDLC were restored from: " + backupFolder);
+                SMLog.Log("No CDLC were restored from: " + backupFolder);
         }
 
         public static List<string> SongFilePaths(List<SongData> songs)
@@ -577,7 +578,7 @@ namespace CustomsForgeSongManager.LocalTools
                     return;
 
                 AppSettings.Instance.DLMonitorDesinationFolder = fbd.SelectedPath;
-                Globals.Log("- Downloads destination folder set to: " + fbd.SelectedPath);
+                SMLog.Log("- Downloads destination folder set to: " + fbd.SelectedPath);
                 Globals.Settings.SaveSettingsToFile(Globals.DgvCurrent);
             }
         }
@@ -654,8 +655,8 @@ namespace CustomsForgeSongManager.LocalTools
             {
                 // We'll let this slide for now... but we should never just throw an exception
                 // that would "force app to stop here" as this is not a good practice and looks like a random crash to the user. 
-                Globals.Log("<ERROR> Could not verify CFSM work folders ...");
-                Globals.Log(ex.Message);
+                SMLog.Log("<ERROR> Could not verify CFSM work folders ...");
+                SMLog.Log(ex.Message);
                 throw new Exception(); // force app to stop here
             }
         }
@@ -682,7 +683,7 @@ namespace CustomsForgeSongManager.LocalTools
                              !fi.ToLower().Contains(Constants.ABVSONGPACK) && // ignore _sp_
                              !fi.ToLower().Contains("inlay")).ToList(); // ignore inlays
 
-            Globals.Log("Number of song .psarcs found in " + dirPath + " folder: " + songListInFolder.Count().ToString());
+            SMLog.Log("Number of song .psarcs found in " + dirPath + " folder: " + songListInFolder.Count().ToString());
 
             return songListInFolder;
         }
@@ -723,14 +724,14 @@ namespace CustomsForgeSongManager.LocalTools
                 // Check for duplicate enable/disabled files and remove disabled file
                 //if (baseSongs.Count > 1)
                 //{
-                //    Globals.Log("<WARNING> Invalid songs*.psarc file count ...");
+                //    SMLog.Log("<WARNING> Invalid songs*.psarc file count ...");
 
                 //    for (int i = 1; i < baseSongs.Count; i++)
                 //    {
                 //        var baseSong = Path.Combine(AppSettings.Instance.RSInstalledDir, baseSongs[i]);
                 //        File.Delete(baseSong);
                 //        baseSongs.RemoveAt(i);
-                //        Globals.Log("- Deleted file: " + baseSong + " ...");
+                //        SMLog.Log("- Deleted file: " + baseSong + " ...");
                 //    }
                 //}
 
@@ -755,8 +756,8 @@ namespace CustomsForgeSongManager.LocalTools
                             continue;
 
                         files.Remove(dupPath);
-                        Globals.Log("- Moved disabled duplicate file: " + dupPath);
-                        Globals.Log("- To: " + destFilePath);
+                        SMLog.Log("- Moved disabled duplicate file: " + dupPath);
+                        SMLog.Log("- To: " + destFilePath);
                     }
                 }
             }
@@ -803,10 +804,10 @@ namespace CustomsForgeSongManager.LocalTools
             }
 
             dom.Save(Constants.SongsInfoPath);
-            Globals.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
+            SMLog.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
         }
 
-        public static void SaveUserSettingsToFile(bool verbose = false)
+        public static void SaveApplicationSettingsToFile(bool verbose = false)
         {
             try
             {
@@ -814,47 +815,45 @@ namespace CustomsForgeSongManager.LocalTools
                 {
                     AppSettings.Instance.SerializeXml(fs);
                     if (verbose)
-                        Globals.Log("Saved File: " + Path.GetFileName(Constants.AppSettingsPath));
+                        SMLog.Log("Saved File: " + Path.GetFileName(Constants.AppSettingsPath));
                 }
             }
             catch (Exception ex)
             {
-                Globals.Log(String.Format("<Error> SaveSettingsToFile: {0}", ex.Message));
+                SMLog.Log(String.Format("<Error> SaveSettingsToFile: {0}", ex.Message));
             }
         }
 
 
-        public static void SaveDataGridViewSettingsToFile(DataGridView dgvCurrent)
+        public static void SaveDataGridViewSettingsToFile(DataGridView dgvToSave)
         {
 
-            Debug.WriteLine("Save DataGridView Settings: " + dgvCurrent.Name);
+            Debug.WriteLine("Save DataGridView Settings: " + dgvToSave.Name);
 
             try
             {
                 // If dgvCurrent is null or has no name, return early
-                if (String.IsNullOrEmpty(dgvCurrent.Name)) // || dgvCurrent.RowCount == 0)
+                if (String.IsNullOrEmpty(dgvToSave.Name)) // || dgvCurrent.RowCount == 0)
                 {
                     return;
                 }
                 else
                 {
-                    // Set it as current so its name can be used in Constants.GridSettingsPath
-                    Globals.DgvCurrent = dgvCurrent;
-                }
+                    // If the directory for the grid settings folder does not exist, create it
+                    if (!Directory.Exists(Constants.GridSettingsFolder))
+                    {
+                        Directory.CreateDirectory(Constants.GridSettingsFolder);
+                    }
 
-                // If the directory for the grid settings folder does not exist, create it
-                if (!Directory.Exists(Constants.GridSettingsFolder))
-                {
-                    Directory.CreateDirectory(Constants.GridSettingsFolder);
+                    // Save the current DataGridView column order to the specified file
+                    string gridSettingsPath = Constants.GetGridSettingsPathForGridName(dgvToSave.Name);
+                    SerialExtensions.SaveToFile(gridSettingsPath, RAExtensions.SaveColumnOrder(dgvToSave));
+                    SMLog.Log("Saved File: " + Path.GetFileName(gridSettingsPath));
                 }
-
-                // Save the current DataGridView column order to the specified file
-                SerialExtensions.SaveToFile(Constants.GridSettingsPath, RAExtensions.SaveColumnOrder(dgvCurrent));
-                Globals.Log("Saved File: " + Path.GetFileName(Constants.GridSettingsPath));
             }
             catch (Exception ex)
             {
-                Globals.Log(String.Format("<Error> SaveDataGridViewSettingsToFile: {0}", ex.Message));
+                SMLog.Log(String.Format("<Error> SaveDataGridViewSettingsToFile: {0}", ex.Message));
             }
         }
 
@@ -862,20 +861,19 @@ namespace CustomsForgeSongManager.LocalTools
         /// Loads the application settings from the settings file.
         /// </summary>
         /// <param name="verbose"></param>
-        public static void LoadSettingsFromFile(bool verbose = false)
+        public static AppSettings LoadApplicationSettingsFromFile(string settingsFilePath, bool verbose = false)
         {
+            AppSettings settings = null;
             try
             {
                 // Try to load the settings from the file into the singleton instance
-                AppSettings settings = AppSettings.Instance.LoadFromFile(Constants.AppSettingsPath, verbose);
-
-                // Put the latest settings into the model
-                Model.Instance.SetApplicationSettings(AppSettings.Instance.GetSettings());
+                settings = AppSettings.GetSettingsFromFile(settingsFilePath, true, verbose);
             }
             catch (Exception ex)
             {
                 Globals.MyLog.Write(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
             }
+            return settings;
         }
     }
 }

@@ -26,6 +26,7 @@ using RocksmithToolkitLib.Sng2014HSL;
 using CustomsForgeSongManager.Properties;
 using System.Collections.Concurrent;
 using System.Reflection;
+using DLogNet;
 
 namespace CustomsForgeSongManager.Workers
 {
@@ -249,7 +250,7 @@ namespace CustomsForgeSongManager.Workers
             FileTools.CleanDlcFolder();
 
             // Start the repair process by announcing the start and reporting initial progress numbers
-            Globals.Log("Applying selected repair options ...");
+            SMLog.Log("Applying selected repair options ...");
             this.ReportProgress(0, null);
 
             if (!CancellationPending)
@@ -346,7 +347,7 @@ namespace CustomsForgeSongManager.Workers
                     // If we have messages, dequeue them and send them to the UI
                     while (_messageQueue.TryDequeue(out var message))
                     {
-                        Globals.Log(message);
+                        SMLog.Log(message);
                     }
                 }
 
@@ -395,7 +396,7 @@ namespace CustomsForgeSongManager.Workers
             if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
             {
                 // bWorker.Abort(); // don't use abort
-                Globals.Log(Resources.UserCancelledProcess);
+                SMLog.Log(Resources.UserCancelledProcess);
                 Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
                 Globals.TsLabel_StatusMsg.Text = "";
                 Globals.WorkerFinished = Globals.Tristate.Cancelled;
@@ -404,7 +405,7 @@ namespace CustomsForgeSongManager.Workers
             {
                 ReportProgress(100);
                 //counterStopwatch.Stop();
-                //Globals.Log(String.Format("Finished " + WorkDescription.ToLower() + " took: {0}", counterStopwatch.Elapsed));
+                //SMLog.Log(String.Format("Finished " + WorkDescription.ToLower() + " took: {0}", counterStopwatch.Elapsed));
                 Globals.WorkerFinished = Globals.Tristate.True;
             }
 
@@ -431,14 +432,14 @@ namespace CustomsForgeSongManager.Workers
 
             if (_repairOptions.UsingOrgFiles)
             {
-                Globals.Log("Using [.org] files for all selected repairs ...");
+                SMLog.Log("Using [.org] files for all selected repairs ...");
                 srcFilePaths = Directory.EnumerateFiles(Constants.RemasteredOrgFolder, "*" + Constants.EXT_ORG + "*").ToList();
                 // only repair selected files (not all of them, doh!)
                 List<string> selectedFileNames = FileTools.SongFilePaths(songs).Select(x => Path.GetFileNameWithoutExtension(x)).ToList();
                 srcFilePaths = srcFilePaths.Where(x => selectedFileNames.Any(y => x.Contains(y))).ToList();
                 if (!srcFilePaths.Any())
                 {
-                    Globals.Log("<ERROR> Did not find any [.org] files ...");
+                    SMLog.Log("<ERROR> Did not find any [.org] files ...");
                 }
             }
             else if (_repairOptions.DLFolderProcess)
@@ -447,11 +448,11 @@ namespace CustomsForgeSongManager.Workers
                 // AppSettings.Instance.DownloadsDir is (must be) validated before being used by the bWorker
                 foreach (var dlDirPath in AppSettings.Instance.MonitoredFolders)
                 {
-                    Globals.Log("Repairing CDLC files from: " + dlDirPath + " ...");
+                    SMLog.Log("Repairing CDLC files from: " + dlDirPath + " ...");
                     if (Directory.Exists(dlDirPath))
                         srcFilePaths.AddRange(FileTools.GetSongListForAFolder(dlDirPath));
                     else
-                        Globals.Log("Folder: " + dlDirPath + " does not currently exist.");
+                        SMLog.Log("Folder: " + dlDirPath + " does not currently exist.");
                 }              
             }
             else
@@ -630,12 +631,12 @@ namespace CustomsForgeSongManager.Workers
                     tw.Close();
                 }
 
-                Globals.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
+                SMLog.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
             }
 
             if (_numSongsRepaired > 0)
             {
-                Globals.Log("CDLC repairs completed ...");
+                SMLog.Log("CDLC repairs completed ...");
                 Globals.ReloadSongManager = true;
 
                 if (!Constants.DebugMode)
@@ -643,7 +644,7 @@ namespace CustomsForgeSongManager.Workers
             }
             else
             {
-                Globals.Log("No CDLC were repaired ...");
+                SMLog.Log("No CDLC were repaired ...");
             }
         }
 
@@ -827,7 +828,7 @@ namespace CustomsForgeSongManager.Workers
                 if (_repairOptions.FixAppId)
                 {
                     packageData.AppId = "248750";
-                    Globals.Log(threadID, " - Applied Default AppId");
+                    SMLog.Log(threadID, " - Applied Default AppId");
                 }
 
                 // validate packageData.Name (important)
@@ -970,18 +971,18 @@ namespace CustomsForgeSongManager.Workers
 
                     if (isKept || removalNdx == 0)
                     {
-                        Globals.Log(" - Kept Arrangement: " + arr);
+                        SMLog.Log(" - Kept Arrangement: " + arr);
                         packageDataKept.Arrangements.Add(arr);
 
                         if (packageDataKept.Arrangements.Count == playableArrLimit)
                         {
-                            Globals.Log(" - Kept first [" + playableArrLimit + "] arrangements matching the repair criteria");
+                            SMLog.Log(" - Kept first [" + playableArrLimit + "] arrangements matching the repair criteria");
                             break;
                         }
                     }
                     else
                     {
-                        Globals.Log(" - Removed Arrangement: " + arr);
+                        SMLog.Log(" - Removed Arrangement: " + arr);
                         if (!_repairOptions.IgnoreStopLimit)
                             removalNdx--;
                     }

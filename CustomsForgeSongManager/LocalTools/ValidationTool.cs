@@ -1,5 +1,7 @@
 ﻿using CustomControls;
+using CustomsForgeSongManager.DataManager;
 using CustomsForgeSongManager.DataObjects;
+using DLogNet;
 using GenTools;
 using System;
 using System.Collections.Generic;
@@ -48,28 +50,29 @@ namespace CustomsForgeSongManager.LocalTools
         /// <returns></returns>
         public static bool ValidateD3D()
         {
-            if (!AppSettings.Instance.ValidateD3D || Constants.OnMac)
+            if (!AppSettings.Instance.ValidateD3D || DirectoryManager.OnMac)
             {
-                if (Constants.OnMac)
-                    Globals.Log("<MAC MODE> 'Validate D3DX9_42.dll' checkbox is not applicable ...");
+                if (DirectoryManager.OnMac)
+                    SMLog.Log("<MAC MODE> 'Validate D3DX9_42.dll' checkbox is not applicable ...");
                 else
-                    Globals.Log("<WARNING> 'Validate D3DX9_42.dll' checkbox is disabled ...");
+                    SMLog.Log("<WARNING> 'Validate D3DX9_42.dll' checkbox is disabled ...");
 
                 return false;
             }
 
             // validate remastered version of D3DX9_42.dll
             // discountinued support for legacy version of D3DX9_42.dll (commented out)
-            var luaPath = Path.Combine(AppSettings.Instance.RSInstalledDir, "lua5.1.dll");
-            var steamClientPath = Path.Combine(AppSettings.Instance.RSInstalledDir, "Steamclient.dll");
-            var d3dPath = Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll");
+            var luaPath = Path.Combine(DirectoryManager.RSInstalledDir, "lua5.1.dll");
+            var steamClientPath = Path.Combine(DirectoryManager.RSInstalledDir, "Steamclient.dll");
+            var d3dPath = Path.Combine(DirectoryManager.RSInstalledDir, "D3DX9_42.dll");
 
             if (!File.Exists(d3dPath))
             {
                 var diaMsg = "The 'D3DX9_42.dll' file could not be found. Would you like CFSM to install the dll file that is required to play CDLC files?";
-                if (DialogResult.No == BetterDialog2.ShowDialog(GenExtensions.SplitString(diaMsg, 30), "Validating D3DX9_42.dll ...", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
+                if (DialogResult.No == BetterDialog2.ShowDialog(GenExtensions.SplitString(diaMsg, 30),
+                    "Validating D3DX9_42.dll ...", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
                 {
-                    Globals.Log("<WARNING> User aborted installing 'D3DX9_42.dll' file ...");
+                    SMLog.Log("<WARNING> User aborted installing 'D3DX9_42.dll' file ...");
                     return false;
                 }
 
@@ -77,13 +80,14 @@ namespace CustomsForgeSongManager.LocalTools
                 if (File.Exists(luaPath) || File.Exists(steamClientPath))
                 {
                     //GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.old"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                    //Globals.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 ...");
-                    Globals.Log("<WARNING> Legacy 'D3DX9_42.dll' file installation for Rocksmith 2014 is not supported ...");
+                    //SMLog.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 ...");
+                    SMLog.Log("<WARNING> Legacy 'D3DX9_42.dll' file installation for Rocksmith 2014 is not supported ...");
                 }
                 else
                 {
-                    GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.new"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                    Globals.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
+                    GenExtensions.CopyFile(Path.Combine(DirectoryManager.ApplicationFolder, "D3DX9_42.dll.new"), 
+                        Path.Combine(DirectoryManager.RSInstalledDir, "D3DX9_42.dll"), true, false);
+                    SMLog.Log("Installed 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
                 }
             }
             else
@@ -96,37 +100,40 @@ namespace CustomsForgeSongManager.LocalTools
 
                 // verify correct dll is installed using MD5 Hash
                 var d3dFileMD5 = GenExtensions.GetMD5Hash(d3dPath);
-                var d3dNewMD5 = GenExtensions.GetMD5Hash(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.new"));
-                var d3dOldMD5 = GenExtensions.GetMD5Hash(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.old"));
-                var d3dBasicModsMD5 = GenExtensions.GetMD5Hash(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.basic_mods")); //for the basic (custom song lists only) version of the modded DLL
+                var d3dNewMD5 = GenExtensions.GetMD5Hash(Path.Combine(DirectoryManager.ApplicationFolder, "D3DX9_42.dll.new"));
+                var d3dOldMD5 = GenExtensions.GetMD5Hash(Path.Combine(DirectoryManager.ApplicationFolder, "D3DX9_42.dll.old"));
+                var d3dBasicModsMD5 = GenExtensions.GetMD5Hash(Path.Combine(DirectoryManager.ApplicationFolder, "D3DX9_42.dll.basic_mods")); //for the basic (custom song lists only) version of the modded DLL
                 //var d3dExtraModsMD5 = GenExtensions.GetMD5Hash(Constants.ApplicationFolder, "D3X9_42.dll.extra_mods"); //for a future modded DLL
 
                 if (((File.Exists(luaPath) || File.Exists(steamClientPath)) && d3dFileMD5 != d3dOldMD5) || ((!File.Exists(luaPath) && !File.Exists(steamClientPath)) && d3dFileMD5 != d3dNewMD5 && d3dFileMD5 != d3dBasicModsMD5))
                 {
                     var dlgMsg1 = "The installed 'D3DX9_42.dll' file MD5 hash value is invalid. Would you like CFSM to update the dll file that is required to play CDLC files?";
                     var dlgMsg2 = "Note: If your CDLC are working fine then answer 'No' and then disable future validation checks in the 'Settings' tab menu.";
-                    var dlgMsg = GenExtensions.SplitString(dlgMsg1, 30) + Environment.NewLine + Environment.NewLine + GenExtensions.SplitString(dlgMsg2, 30);
+                    var dlgMsg = GenExtensions.SplitString(dlgMsg1, 30) + Environment.NewLine + Environment.NewLine 
+                        + GenExtensions.SplitString(dlgMsg2, 30);
 
-                    if (DialogResult.No == BetterDialog2.ShowDialog(dlgMsg, "Validating D3DX9_42.dll ...", null, "Yes", "No", Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
+                    if (DialogResult.No == BetterDialog2.ShowDialog(dlgMsg, "Validating D3DX9_42.dll ...", null, "Yes", "No", 
+                        Bitmap.FromHicon(SystemIcons.Warning.Handle), "Warning", 0, 150))
                     {
-                        Globals.Log("<WARNING> User aborted updating the 'D3DX9_42.dll' file ...");
+                        SMLog.Log("<WARNING> User aborted updating the 'D3DX9_42.dll' file ...");
                         return false;
                     }
 
                     if (File.Exists(luaPath) || File.Exists(steamClientPath))
                     {
                         //GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.old"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                        //Globals.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 ...");
-                        Globals.Log("<WARNING> Legacy 'D3DX9_42.dll' file updating for Rocksmith 2014 is not supported ...");
+                        //SMLog.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 ...");
+                        SMLog.Log("<WARNING> Legacy 'D3DX9_42.dll' file updating for Rocksmith 2014 is not supported ...");
                     }
                     else
                     {
-                        GenExtensions.CopyFile(Path.Combine(Constants.ApplicationFolder, "D3DX9_42.dll.new"), Path.Combine(AppSettings.Instance.RSInstalledDir, "D3DX9_42.dll"), true, false);
-                        Globals.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
+                        GenExtensions.CopyFile(Path.Combine(DirectoryManager.ApplicationFolder, "D3DX9_42.dll.new"), 
+                            Path.Combine(DirectoryManager.RSInstalledDir, "D3DX9_42.dll"), true, false);
+                        SMLog.Log("Updated 'D3DX9_42.dll' file for Rocksmith 2014 Remastered ...");
                     }
                 }
                 else
-                    Globals.Log("Validated existing 'D3DX9_42.dll' file installation ...");
+                    SMLog.Log("Validated existing 'D3DX9_42.dll' file installation ...");
             }
 
             return true;
@@ -190,5 +197,91 @@ namespace CustomsForgeSongManager.LocalTools
         }
 
         #endregion ValidateDisplaySettings
+
+        public static void ValidateSongManagerFolders()
+        {
+            try
+            {
+                createWorkFolders();
+
+                validateWriteAccessToRocksmithInstallDirectory();
+
+                // Copy the duplicates folder from the RSinstallDir to the CFSM Duplicates folder in My Documents
+                GenExtensions.CopyDir(Path.Combine(DirectoryManager.RSInstalledDir, "duplicates"), DirectoryManager.DuplicatesFolder);
+                
+                cleanUpCfsmTempFolders();
+            }
+            catch (Exception ex)
+            {
+                // We'll let this slide for now... but we should never just throw an exception
+                // that would "force app to stop here" as this is not a good practice and looks like a random crash to the user. 
+                SMLog.Log("<ERROR> Could not verify CFSM work folders ...");
+                SMLog.Log(ex.Message);
+                throw new Exception(); // force app to stop here
+            }
+        }
+
+        private static void cleanUpCfsmTempFolders()
+        {
+            try
+            {
+
+                // Delete CFSM temp folders if they exist
+                GenExtensions.DeleteDirectory(Path.Combine(DirectoryManager.RSInstalledDir, "cdlc_quarantined"));
+                GenExtensions.DeleteDirectory(Path.Combine(DirectoryManager.RSInstalledDir, "cdlc_duplicates"));
+                GenExtensions.DeleteDirectory(Path.Combine(DirectoryManager.RSInstalledDir, "duplicates"));
+            }
+            catch (Exception ex)
+            {
+                SMLog.Log("<ERROR> Could not clean-up CFSM temp folders ... ex.Message: " + ex.Message);
+            }
+        }
+
+        private static void createWorkFolders()
+        {
+            try
+            {
+                // use 'My Documents/CFSM' to avoid future OS Permission and AV issues
+                // validate/create CFSM subfolders            
+                GenExtensions.MakeDir(DirectoryManager.TempWorkFolder);
+                GenExtensions.MakeDir(DirectoryManager.BackupsFolder);
+                GenExtensions.MakeDir(DirectoryManager.DuplicatesFolder);
+                GenExtensions.MakeDir(DirectoryManager.RemasteredArcFolder);
+                GenExtensions.MakeDir(DirectoryManager.RemasteredOrgFolder);
+                GenExtensions.MakeDir(DirectoryManager.RemasteredMaxFolder);
+                GenExtensions.MakeDir(DirectoryManager.RemasteredCorFolder);
+                GenExtensions.MakeDir(DirectoryManager.QuarantineFolder);
+                GenExtensions.MakeDir(DirectoryManager.SongPacksFolder);
+            }
+            catch (Exception ex)
+            {
+                SMLog.Log("<ERROR> Could not create CFSM work folders ... ex.Message: " + ex.Message);
+            }
+        }
+
+        private static bool validateWriteAccessToRocksmithInstallDirectory()
+        {
+            bool hasWriteAccess = false;
+            try
+            {
+                // make sure we have write access to Rocksmith2014 folders
+                if (Directory.Exists(DirectoryManager.RSInstalledDir))
+                {
+                    // make sure we have write access to the RSInstallDir
+                    if (!ZipUtilities.EnsureWritableDirectory(DirectoryManager.RSInstalledDir))
+                        ZipUtilities.RemoveReadOnlyAttribute(DirectoryManager.RSInstalledDir);
+
+                    // make sure we have write access to all files in 'dlc' folder
+                    ZipUtilities.RemoveReadOnlyAttribute(DirectoryManager.Rs2DlcFolder);
+
+                    hasWriteAccess = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                SMLog.Log("<ERROR> We do not have write access to the Rocksmith Installation directory! ex.Message: " + ex.Message);
+            }
+            return hasWriteAccess;
+        }
     }
 }

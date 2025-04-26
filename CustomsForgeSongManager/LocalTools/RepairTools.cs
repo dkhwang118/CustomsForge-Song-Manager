@@ -75,18 +75,18 @@ namespace CustomsForgeSongManager.LocalTools
 
                 if (isKept || removalNdx == 0)
                 {
-                    Globals.Log(" - Kept Arrangement: " + arr);
+                    SMLog.Log(" - Kept Arrangement: " + arr);
                     packageDataKept.Arrangements.Add(arr);
 
                     if (packageDataKept.Arrangements.Count == playableArrLimit)
                     {
-                        Globals.Log(" - Kept first [" + playableArrLimit + "] arrangements matching the repair criteria");
+                        SMLog.Log(" - Kept first [" + playableArrLimit + "] arrangements matching the repair criteria");
                         break;
                     }
                 }
                 else
                 {
-                    Globals.Log(" - Removed Arrangement: " + arr);
+                    SMLog.Log(" - Removed Arrangement: " + arr);
                     if (!options.IgnoreStopLimit)
                         removalNdx--;
                 }
@@ -123,7 +123,7 @@ namespace CustomsForgeSongManager.LocalTools
                 // XML, JSON and SNG's must be regenerated
                 // ArrangementIDs are stored in multiple place and all need to be updated
                 // therefore we are going to unpack, apply repair, and repack
-                Globals.Log(" - Extracting CDLC Artifacts");
+                SMLog.Log(" - Extracting CDLC Artifacts");
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate
                 {
                     Globals.TsProgressBar_Main.Value = 35;
@@ -207,12 +207,12 @@ namespace CustomsForgeSongManager.LocalTools
 
                         if (String.IsNullOrEmpty(consoleOutput))
                         {
-                            Globals.Log(" - Added DD to " + arr);
+                            SMLog.Log(" - Added DD to " + arr);
                             addedDD = true;
                         }
                         else
                         {
-                            Globals.Log(" - " + arr + " DDC console output: " + consoleOutput);
+                            SMLog.Log(" - " + arr + " DDC console output: " + consoleOutput);
                             sbErrors.AppendLine(String.Format("{0}, Could not apply DD to: {1}", srcFilePath, arr));
                             ddError = true;
                         }
@@ -238,14 +238,14 @@ namespace CustomsForgeSongManager.LocalTools
                 if (options.RepairMaxFive && fixedMax5)
                 {
                     packageData = packageData.AddPackageComment(Constants.TKI_MAX5);
-                    Globals.Log(" - Applied MaxFive Repairs");
+                    SMLog.Log(" - Applied MaxFive Repairs");
                 }
 
                 // add default package version if missing
                 if (String.IsNullOrEmpty(packageData.ToolkitInfo.PackageVersion))
                 {
                     packageData.ToolkitInfo.PackageVersion = "1";
-                    Globals.Log(" - Fixed Missing PackageVersion");
+                    SMLog.Log(" - Fixed Missing PackageVersion");
                 }
                 else
                     packageData.ToolkitInfo.PackageVersion = packageData.ToolkitInfo.PackageVersion.GetValidVersion();
@@ -254,19 +254,19 @@ namespace CustomsForgeSongManager.LocalTools
                 if (options.FixAppId)
                 {
                     packageData.AppId = "248750";
-                    Globals.Log(" - Applied Default AppId");
+                    SMLog.Log(" - Applied Default AppId");
                 }
 
                 // validate packageData.Name (important)
                 packageData.Name = packageData.Name.GetValidKey(); // DLC Key                 
 
                 // log repair status
-                Globals.Log(String.Format(" - {0}", options.PreserveStats ? "Preserved Song Stats" : "Reset Song Stats"));
+                SMLog.Log(String.Format(" - {0}", options.PreserveStats ? "Preserved Song Stats" : "Reset Song Stats"));
 
                 if (options.AdjustScrollSpeed)
-                    Globals.Log(" - Adjusted Scroll Speed: " + options.ScrollSpeed);
+                    SMLog.Log(" - Adjusted Scroll Speed: " + options.ScrollSpeed);
 
-                Globals.Log(" - Repackaging Remastered CDLC");
+                SMLog.Log(" - Repackaging Remastered CDLC");
                 GenExtensions.InvokeIfRequired(Globals.TsProgressBar_Main.GetCurrentParent(), delegate
                 {
                     Globals.TsProgressBar_Main.Value = 70;
@@ -278,7 +278,7 @@ namespace CustomsForgeSongManager.LocalTools
                     var previewPath = String.Format(Path.Combine(Path.GetDirectoryName(packageData.OggPath), Path.GetFileNameWithoutExtension(packageData.OggPath)) + "_preview.wem");
                     File.Copy(packageData.OggPath, previewPath);
                     packageData.OggPreviewPath = previewPath;
-                    Globals.Log(" - Fixed missing preview audio");
+                    SMLog.Log(" - Fixed missing preview audio");
                 }
 
                 try
@@ -293,12 +293,12 @@ namespace CustomsForgeSongManager.LocalTools
                 }
 
                 if (options.UsingOrgFiles)
-                    Globals.Log(" - Used [" + Constants.EXT_ORG + "] File");
+                    SMLog.Log(" - Used [" + Constants.EXT_ORG + "] File");
 
                 if (!ddError)
-                    Globals.Log(" - Repair was successful ...");
+                    SMLog.Log(" - Repair was successful ...");
                 else
-                    Globals.Log(" - Repair was successful, but DD could not be applied ...");
+                    SMLog.Log(" - Repair was successful, but DD could not be applied ...");
 
                 if (!options.DLFolderProcess)
                 {
@@ -315,7 +315,7 @@ namespace CustomsForgeSongManager.LocalTools
             }
             catch (CustomException ex) // (e1)
             {
-                Globals.Log("<ERROR> (e1) " + ex.Message.Replace("\r\n", ""));
+                SMLog.Log("<ERROR> (e1) " + ex.Message.Replace("\r\n", ""));
 
                 if (ex.Message.Contains("Maximum"))
                 {
@@ -335,7 +335,7 @@ namespace CustomsForgeSongManager.LocalTools
             }
             catch (Exception ex) // (e2)
             {
-                Globals.Log("<ERROR> (e2) " + ex.Message.Replace("\r\n", ""));
+                SMLog.Log("<ERROR> (e2) " + ex.Message.Replace("\r\n", ""));
 
                 //  copy (org) to corrupt (cor), delete backup (org), delete original
                 var properExt = Path.GetExtension(srcFilePath);
@@ -362,7 +362,7 @@ namespace CustomsForgeSongManager.LocalTools
                              !fi.ToLower().Contains(Constants.ABVSONGPACK) && // ignore _sp_
                              !fi.ToLower().Contains("inlay")).ToList(); // ignore inlays
 
-            Globals.Log("Number of song .psarcs found in " + dirPath + " folder: " + songListInFolder.Count().ToString());
+            SMLog.Log("Number of song .psarcs found in " + dirPath + " folder: " + songListInFolder.Count().ToString());
 
             return songListInFolder;
         }
@@ -375,19 +375,19 @@ namespace CustomsForgeSongManager.LocalTools
 
             // make sure 'dlc' folder is clean
             FileTools.CleanDlcFolder();
-            Globals.Log("Applying selected repair options ...");
+            SMLog.Log("Applying selected repair options ...");
             var srcFilePaths = new List<string>();
 
             if (options.UsingOrgFiles)
             {
-                Globals.Log("Using [.org] files for all selected repairs ...");
+                SMLog.Log("Using [.org] files for all selected repairs ...");
                 srcFilePaths = Directory.EnumerateFiles(Constants.RemasteredOrgFolder, "*" + Constants.EXT_ORG + "*").ToList();
                 // only repair selected files (not all of them, doh!)
                 List<string> selectedFileNames = FileTools.SongFilePaths(songs).Select(x => Path.GetFileNameWithoutExtension(x)).ToList();
                 srcFilePaths = srcFilePaths.Where(x => selectedFileNames.Any(y => x.Contains(y))).ToList();
                 if (!srcFilePaths.Any())
                 {
-                    Globals.Log("<ERROR> Did not find any [.org] files ...");
+                    SMLog.Log("<ERROR> Did not find any [.org] files ...");
                 }
             }
             else if (options.DLFolderProcess)
@@ -396,11 +396,11 @@ namespace CustomsForgeSongManager.LocalTools
                 // AppSettings.Instance.DownloadsDir is (must be) validated before being used by the bWorker
                 foreach (var dlDirPath in AppSettings.Instance.MonitoredFolders)
                 {
-                    Globals.Log("Repairing CDLC files from: " + dlDirPath + " ...");
+                    SMLog.Log("Repairing CDLC files from: " + dlDirPath + " ...");
                     if (Directory.Exists(dlDirPath))
                         srcFilePaths.AddRange(GetSongListForAFolder(dlDirPath));
                     else
-                        Globals.Log("Folder: " + dlDirPath + " does not currently exist.");
+                        SMLog.Log("Folder: " + dlDirPath + " does not currently exist.");
                 }
             }
             else
@@ -413,7 +413,7 @@ namespace CustomsForgeSongManager.LocalTools
             foreach (var srcFilePath in srcFilePaths)
             {
                 var isSkipped = false;
-                Globals.Log("Processing: " + Path.GetFileName(srcFilePath));
+                SMLog.Log("Processing: " + Path.GetFileName(srcFilePath));
                 processed++;
                 GenericWorker.ReportProgress(processed, total, skipped, failed);
 
@@ -422,28 +422,28 @@ namespace CustomsForgeSongManager.LocalTools
                 {
                     if (isOfficialRepairedDisabled.Contains("Official"))
                     {
-                        Globals.Log(" - Skipped ODLC File");
+                        SMLog.Log(" - Skipped ODLC File");
                         skipped++;
                         isSkipped = true;
                     }
 
                     if (isOfficialRepairedDisabled.Contains("Remastered") && options.SkipRemastered)
                     {
-                        Globals.Log(" - Skipped Remastered File");
+                        SMLog.Log(" - Skipped Remastered File");
                         skipped++;
                         isSkipped = true;
                     }
 
                     if (isOfficialRepairedDisabled.Contains("Disabled"))
                     {
-                        Globals.Log(" - Skipped Disabled File");
+                        SMLog.Log(" - Skipped Disabled File");
                         skipped++;
                         isSkipped = true;
                     }
 
                     if (isOfficialRepairedDisabled.Contains("DLC Builder"))
                     {
-                        Globals.Log(" - Skipped DLC created with DLC Builder");
+                        SMLog.Log(" - Skipped DLC created with DLC Builder");
                         skipped++;
                         isSkipped = true;
                     }
@@ -457,9 +457,9 @@ namespace CustomsForgeSongManager.LocalTools
                     {
                         var lines = sbErrors.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToList();
                         if (lines.Last().ToLower().Contains("maximum"))
-                            Globals.Log(String.Format(" - CDLC exceeds playable arrangements limit ..."));
+                            SMLog.Log(String.Format(" - CDLC exceeds playable arrangements limit ..."));
                         else
-                            Globals.Log(String.Format(" - CDLC is not repairable ..."));
+                            SMLog.Log(String.Format(" - CDLC is not repairable ..."));
 
                         failed++;
 
@@ -485,7 +485,7 @@ namespace CustomsForgeSongManager.LocalTools
 
                     var destFilePath = Path.Combine(downloadsDestFolder, Path.GetFileName(srcFilePath));
                     GenExtensions.MoveFile(srcFilePath, destFilePath, false, true, repairOptions.SkipDupes);
-                    Globals.Log(" - Moved new CDLC to: " + downloadsDestFolder);
+                    SMLog.Log(" - Moved new CDLC to: " + downloadsDestFolder);
                     Globals.ReloadSongManager = true; // set quick reload flag
 
                     // add new repaired downloads CDLC to the SongCollection
@@ -515,21 +515,21 @@ namespace CustomsForgeSongManager.LocalTools
                     tw.Close();
                 }
 
-                Globals.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
+                SMLog.Log(" - For file and error details, see: " + Constants.RepairsErrorLogPath);
             }
 
             GenericWorker.ReportProgress(processed, total, skipped, failed);
 
             if (processed > 0)
             {
-                Globals.Log("CDLC repairs completed ...");
+                SMLog.Log("CDLC repairs completed ...");
                 Globals.ReloadSongManager = true;
 
                 if (!Constants.DebugMode)
                     GenExtensions.CleanLocalTemp();
             }
             else
-                Globals.Log("No CDLC were repaired ...");
+                SMLog.Log("No CDLC were repaired ...");
 
             return sbErrors;
         }
@@ -593,8 +593,8 @@ namespace CustomsForgeSongManager.LocalTools
                     currentWatcher.EnableRaisingEvents = true;
                     watchers.Add(currentWatcher);
 
-                    Globals.Log(" - Started watching downloads folder for new incomming '*.psarc' files ...");
-                    Globals.Log(" - Folder: " + folder);
+                    SMLog.Log(" - Started watching downloads folder for new incomming '*.psarc' files ...");
+                    SMLog.Log(" - Folder: " + folder);
                 }
             }
             else
@@ -610,7 +610,7 @@ namespace CustomsForgeSongManager.LocalTools
                     }
                 }
 
-                Globals.Log(" - Stopped watching downloads folder ...");
+                SMLog.Log(" - Stopped watching downloads folder ...");
             }
         }
 
@@ -618,12 +618,12 @@ namespace CustomsForgeSongManager.LocalTools
         private static void OnChanged(object source, FileSystemEventArgs e)
         {
             // Specify what is done when a file is changed, created, or deleted.
-            // Globals.Log(" - File " + e.ChangeType + ": " + e.FullPath);
+            // SMLog.Log(" - File " + e.ChangeType + ": " + e.FullPath);
 
             // only interested in new file creation
             if (e.ChangeType == WatcherChangeTypes.Created)
             {
-                Globals.Log(" - New File Downloaded/Created: " + e.FullPath);
+                SMLog.Log(" - New File Downloaded/Created: " + e.FullPath);
 
                 try
                 {
@@ -632,7 +632,7 @@ namespace CustomsForgeSongManager.LocalTools
                         {
                             var result = RepairTools.RepairSongs(new List<SongData>(), AppSettings.Instance.RepairOptions).ToString();
                             if (!String.IsNullOrEmpty(result))
-                                Globals.Log("<ERROR> " + result);
+                                SMLog.Log("<ERROR> " + result);
                         });
 
                     // this method may not be desirable but at least the GUI stays responsive during task
@@ -652,7 +652,7 @@ namespace CustomsForgeSongManager.LocalTools
         private static void OnRenamed(object source, RenamedEventArgs e)
         {
             // Specify what is done when a file is renamed.
-            Globals.Log(" - File " + e.ChangeType + ": " + e.OldFullPath + " to " + e.FullPath);
+            SMLog.Log(" - File " + e.ChangeType + ": " + e.OldFullPath + " to " + e.FullPath);
         }
         #endregion
 

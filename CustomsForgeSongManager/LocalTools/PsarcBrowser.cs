@@ -334,10 +334,10 @@ namespace CustomsForgeSongManager.LocalTools
                         }
                         catch (Exception ex) // CDLC may still be usable
                         {
-                            Globals.Log("<WARNING> CDLC is missing some basic song information meta data ...");
-                            Globals.Log(" - " + ex.Message + " : " + ex.InnerException);
-                            Globals.Log(" - " + Path.GetFileName(_filePath));
-                            Globals.Log(" - This CDLC may still be usable but it should be updated if a newer version is available ...");
+                            SMLog.Log("<WARNING> CDLC is missing some basic song information meta data ...");
+                            SMLog.Log(" - " + ex.Message + " : " + ex.InnerException);
+                            SMLog.Log(" - " + Path.GetFileName(_filePath));
+                            SMLog.Log(" - This CDLC may still be usable but it should be updated if a newer version is available ...");
                         }
                     }
 
@@ -658,7 +658,7 @@ namespace CustomsForgeSongManager.LocalTools
                     if (song.Album == null || song.Album.Contains("Rocksmith") || song.ArtistTitleAlbum.Contains(";;"))
                         continue;
 
-                    Globals.Log(String.Format(" + Parsed Song Pack: {0};{1}", _fileName, song.ArtistTitleAlbumDate));
+                    SMLog.Log(String.Format(" + Parsed Song Pack: {0};{1}", _fileName, song.ArtistTitleAlbumDate));
                 }
 
                 song.Arrangements2D = arrangements;
@@ -668,7 +668,7 @@ namespace CustomsForgeSongManager.LocalTools
 
             sw.Stop();
             // elimanted multiple log messages per users request
-            Globals.Log(String.Format(" - Parsing took {1} (msec): {0}", _filePath, sw.ElapsedMilliseconds));
+            SMLog.Log(String.Format(" - Parsing took {1} (msec): {0}", _filePath, sw.ElapsedMilliseconds));
 
             return songsData;
         }
@@ -697,7 +697,7 @@ namespace CustomsForgeSongManager.LocalTools
             if (String.IsNullOrEmpty(audioName))
                 return false;
 
-            Globals.Log(" - Extracting Audio ...");
+            SMLog.Log(" - Extracting Audio ...");
 
             // get contents of archive
             using (var archive = new PSARC(true))

@@ -74,7 +74,7 @@ namespace CustomsForgeSongManager.LocalTools
                         if (_downloadError)
                             throw new WebException("The remote name could not be resolved: " + webUrl);
 
-                        Globals.Log("Successfully Downloaded WebApp: " + appFileName);
+                        SMLog.Log("Successfully Downloaded WebApp: " + appFileName);
                         return true;
 
                         // alternate methods of download
@@ -95,16 +95,16 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 catch (WebException ex)
                 {
-                    Globals.Log("DownloadWebApp Web Exception: " + ex.Message + " ...");
+                    SMLog.Log("DownloadWebApp Web Exception: " + ex.Message + " ...");
                 }
                 catch (NotSupportedException ex)
                 {
-                    Globals.Log("DownloadWebApp Not Supported Exception: " + ex.Message + " ...");
+                    SMLog.Log("DownloadWebApp Not Supported Exception: " + ex.Message + " ...");
                 }
                 Thread.Sleep(200);
             }
 
-            Globals.Log("DownloadWebApp no internet connection detected ...");
+            SMLog.Log("DownloadWebApp no internet connection detected ...");
             return false;
         }
 
@@ -130,16 +130,16 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 catch (WebException ex)
                 {
-                    Globals.Log("ExtractUrlData Web Exception: " + ex.Message + " ...");
+                    SMLog.Log("ExtractUrlData Web Exception: " + ex.Message + " ...");
                 }
                 catch (NotSupportedException ex)
                 {
-                    Globals.Log("ExtractUrlData Not Supported Exception: " + ex.Message + " ...");
+                    SMLog.Log("ExtractUrlData Not Supported Exception: " + ex.Message + " ...");
                 }
                 Thread.Sleep(200);
             }
 
-            Globals.Log("ExtractUrlData no internet connection detected ...");
+            SMLog.Log("ExtractUrlData no internet connection detected ...");
             return urlLinks;
         }
 
@@ -189,11 +189,11 @@ namespace CustomsForgeSongManager.LocalTools
                         }
                         catch (WebException)
                         {
-                            // Globals.Log("NeedsUpdate Web Exception: " + ex.Message + " ...");
+                            // SMLog.Log("NeedsUpdate Web Exception: " + ex.Message + " ...");
                         }
                         catch (NotSupportedException)
                         {
-                            // Globals.Log("NeedsUpdate Not Supported Exception: " + ex.Message + " ...");
+                            // SMLog.Log("NeedsUpdate Not Supported Exception: " + ex.Message + " ...");
                         }
                         Thread.Sleep(200);
                     }
@@ -210,14 +210,14 @@ namespace CustomsForgeSongManager.LocalTools
 
             if (versOnline != versInstalled && versOnline != NO_INTERNET)
             {
-                Globals.Log(Path.GetFileName(appExePath) + " [" + versInstalled + "] needs updating ...");
+                SMLog.Log(Path.GetFileName(appExePath) + " [" + versInstalled + "] needs updating ...");
                 Debug.WriteLine("OnlineVers: " + versOnline + "  <>  InstalledVers: " + versInstalled);
                 return true;
             }
 
             if (versOnline == versInstalled)
             {
-                Globals.Log(Path.GetFileName(appExePath) + " [" + versInstalled + "] does not need updating ...");
+                SMLog.Log(Path.GetFileName(appExePath) + " [" + versInstalled + "] does not need updating ...");
                 Debug.WriteLine("OnlineVers: " + versOnline + "  <>  InstalledVers: " + versInstalled);
                 return false;
             }
@@ -297,16 +297,16 @@ namespace CustomsForgeSongManager.LocalTools
                 }
                 catch (WebException ex)
                 {
-                    Globals.Log("DownloadVersionInfo Web Exception: " + ex.Message + " ...");
+                    SMLog.Log("DownloadVersionInfo Web Exception: " + ex.Message + " ...");
                 }
                 catch (NotSupportedException ex)
                 {
-                    Globals.Log("DownloadVersionInfo Not Supported Exception: " + ex.Message + " ...");
+                    SMLog.Log("DownloadVersionInfo Not Supported Exception: " + ex.Message + " ...");
                 }
                 Thread.Sleep(200);
             }
 
-            Globals.Log("DownloadVersionInfo Web Exception: Connection Timed Out ...");
+            SMLog.Log("DownloadVersionInfo Web Exception: Connection Timed Out ...");
             VersOnline = NO_INTERNET;
         }
 
@@ -332,17 +332,17 @@ namespace CustomsForgeSongManager.LocalTools
                         }
 
                         _lastCheck = DateTime.Now;
-                        Globals.Log("GetVersionInfo made a good connection with the server ...");
+                        SMLog.Log("GetVersionInfo made a good connection with the server ...");
                     }
                 }
             }
             catch (WebException ex)
             {
-                Globals.Log("GetVersionInfo Web Exception: " + ex.Message + " ...");
+                SMLog.Log("GetVersionInfo Web Exception: " + ex.Message + " ...");
             }
             catch (NotSupportedException ex)
             {
-                Globals.Log("GetVersionInfo Not Supported Exception: " + ex.Message + " ...");
+                SMLog.Log("GetVersionInfo Not Supported Exception: " + ex.Message + " ...");
             }
         }
 
@@ -356,7 +356,7 @@ namespace CustomsForgeSongManager.LocalTools
                     });
 
                 _downloadComplete = true;
-                //Globals.Log("Download Completed ...");
+                //SMLog.Log("Download Completed ...");
             }
             else
                 _downloadError = true;

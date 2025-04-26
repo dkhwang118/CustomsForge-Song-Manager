@@ -227,6 +227,38 @@ namespace CustomsForgeSongManager.DataObjects
         /// </summary>
         private ReaderWriterLockSlim _appSettingsLock = new ReaderWriterLockSlim();
 
+        /// <summary>
+        /// The application settings object that holds all the application settings.
+        /// </summary>
+        private AppSettings _appSettingsInstance = null;
+
+        /// <summary>
+        /// Set the application settings with the given AppSettings object.
+        /// </summary>
+        /// <param name="newSettings"></param>
+        public void SetApplicationSettings(AppSettings newSettings)
+        {
+            // Get the write lock
+            _appSettingsLock.EnterWriteLock();
+
+            // Set the application settings
+            foreach (Tuple<string, object> setting in newSettings.GetSettings())
+            {
+                // Use the private method to do the setting
+                setApplicationSetting(setting.Item1, setting.Item2);
+            }
+
+            // Set the application settings object
+            _appSettingsInstance = newSettings;
+
+            // Release the write lock
+            _appSettingsLock.ExitWriteLock();
+        }
+
+        /// <summary>
+        /// Set the application settings with the given list of tuples, where each tuple contains a setting name and its value.
+        /// </summary>
+        /// <param name="appSettings"></param>
         public void SetApplicationSettings(List<Tuple<string,object>> appSettings)
         {
             // Get the write lock
