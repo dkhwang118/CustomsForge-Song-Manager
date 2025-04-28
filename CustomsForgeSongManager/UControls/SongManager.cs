@@ -34,6 +34,8 @@ using System.Globalization;
 using CustomsForgeSongManager.Controllers;
 using static CustomsForgeSongManager.Forms.frmMain;
 using CustomsForgeSongManager.DataManager;
+using CustomsForgeSongManager.AppEvents;
+using CustomsForgeSongManager.AppEvents.Event;
 
 
 // TODO: convert SongManager, Duplicates, SetlistManager to use a common bound FilterBindingList<SongData>() dataset.
@@ -46,7 +48,7 @@ namespace CustomsForgeSongManager.UControls
     /// This view has controls from the "Rescan" button in the top left
     /// to the "Protect Official DLC" search options checkbox in the bottom right.
     /// </summary>
-    public partial class SongManager : UserControl, IDataGridViewHolder, INotifyTabChanged
+    public partial class SongManager : UserControl, IDataGridViewHolder, INotifyTabChanged, IEventConsumer
     {
         public Delegate PlaySongFunction;
         private Bitmap MinusBitmap = new Bitmap(Properties.Resources.minus);
@@ -66,10 +68,9 @@ namespace CustomsForgeSongManager.UControls
         private int numberOfDisabledDLC = 0;
 
         /// <summary>
-        /// Local list of the songs in the collection (Global.MasterCollection).
-        /// NOTE: Need to remove this variable; no reason to have two copies of the same data.
+        /// Local list of the songs for the Song Manager tab view.
         /// </summary>
-        private List<SongData> songList = new List<SongData>(); // non-binding prevents filtering from being inherited
+        private List<SongData> _localSongList = null; // non-binding prevents filtering from being inherited
 
         private DgvStatus statusSongsMaster = new DgvStatus();
 
@@ -83,6 +84,8 @@ namespace CustomsForgeSongManager.UControls
         /// For now (2025/04/17) this will have to be set manually until we can clean up the code.
         /// </summary>
         private frmMain _mainWindow = null;
+
+        private BindingSource _dgvBindingSource = null;
 
         public SongManager(frmMain mainWindow, PlayCall playSongFunc, DockStyle dockStyle,
                             Point controlLocation, Size controlSize)
@@ -128,7 +131,9 @@ namespace CustomsForgeSongManager.UControls
             tsmiTargetLUFS.Minimum = (decimal)-30.0;
             //
             dgvSongsDetail.Visible = false;
-            //
+            
+            
+            // Setting the PlaySong stuff from frmMain
             this.PlaySongFunction = playSongFunc;
             this.Dock = dockStyle;
             this.Location = controlLocation;
@@ -159,25 +164,51 @@ namespace CustomsForgeSongManager.UControls
 
 
             // When the song master collection changes, refresh the datagridview
+            /*
             Globals.MasterCollection.ListChanged += (s, e) => 
             {
                 LoadFilteredBindingList(Globals.MasterCollection.ToList());
                 dgvSongsMaster.Refresh(); 
             };
+            */
 
+            //==========================
+            // Consumer/Producer 
+            //============================
+
+            // Register as a consumer of SongMasterListChanged events
+            AppEventManager.RegisterEventConsumer(this, typeof(SongMasterListChangedEvent));
+
+
+
+
+            //===========================
+            // Below is UI stuff
+            //===========================
 
             // All this data stuff below needs to be moved outside this constructor
             // => we either get frmMain to initialize ALL NECESSARY DATA to run the application
             // => or we construct SongManager and then use one of the many ways we can update its data before it gets shown to the user
 
-            PopulateSongManager(); // check SongData version first
+            // Call procedure to populate the SongManager GUI
+            // This call does waaaaay more than just that => gotta refactor
+            //PopulateSongManager(); // check SongData version first
+            populateView();
+
+            // Populate the tagger
             PopulateTagger();
-            InitializeRepairMenu();
-            tsmiRepairs.HideDropDown();
-            UserSupport();
+
+            // Initialize the repair menu
+            initializeRepairMenu();
+
+            
+
+            // Show the user support menu... if needed?
+            // TODO: Put this in its proper place, not the constructor of a tab's view
+            //UserSupport();
 
             // This call shouldn't be made in the constructor.
-            this.TabEnter();
+            //this.TabEnter();
             
 
             // POC Audio Volume Correction Validation Event Handlers
@@ -272,16 +303,187 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
-        public void PopulateSongManager()
+        /// <summary>
+        /// Populate the SongManager GUI with all the updated info it needs.
+        /// </summary>
+        private void populateView()
         {
             SMLog.Log("Populating SongManager GUI ...");
+
+
+
+            // Update checkboxes based on current application settings
+            chkIncludeSubfolders.Checked = AppSettings.Instance.IncludeSubfolders;
+            chkProtectODLC.Checked = AppSettings.Instance.ProtectODLC;
+            cueSearch.Text = AppSettings.Instance.SearchString;
+
             // Hide main dgvSongsMaster until load completes
             dgvSongsMaster.Visible = false;
 
-            InitializeSongsMaster(); // reloads settings
+            // Reload the settings for dgvSongsMaster
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSongsMaster);
+
+            // If we don't have a local list yet
+            if (_localSongList == null)
+            {
+                // We need to create a new binding source
+                _localSongList = new List<SongData>();
+
+
+                // Try to load Song Collection Info from file
+                if (SongDataManager.TryLoadSongInfoFromFile(out List<SongData> songInfo))
+                {
+
+
+                    // If we were able to load it from the file => use it
+                    // Filter the list
+                    filterListByUserSettings(ref songInfo);
+
+                    // Set the list as the source for the DataGridView
+                    setListForDGV(songInfo);
+                }
+                else
+                {
+                    // If we weren't able to load it from file => we need to rescan, but not during a UI update.
+                    int i = 0;
+                }
+            }
+
+            // Post arrangement analyzer message?
+            if (!AppSettings.Instance.IncludeArrangementData)
+                colSongAverageTempo.ToolTipText = "Use Arrangement Analyzer, Rescan\r\nFull to confirm BPM accuracy";
+            else
+                colSongAverageTempo.ToolTipText = "";
+
+            // This is the rest of the code from UpdateToolstrip
+            updateGlobalToolStrip();
+
+            // Below is code from TabEnter
+            // ? Apply the current SongManagerFilter as the SavedColumnFilter?
+            DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.SongManagerFilter;
+
+            // force grid data to rebind/refresh
+            dgvSongsMaster.ResetBindings();
+
+            // Restore current sorting 
+            // NOTE: Does not care if the "SaveSorting" call has been made, it doesn't do anything if so
+            statusSongsMaster.RestoreSorting(dgvSongsMaster);
+
+            dgvSongsMaster.Visible = true;
+
+            SMLog.Log("SongManagerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.SongManagerFilter) ? "None" : AppSettings.Instance.SongManagerFilter));
+            SMLog.Log("Song Manager GUI Activated ...");
+
+
+            /*
+            // Worker actually does the sorting after parsing, this is just to tell the grid that it is sorted.
+            if (!String.IsNullOrEmpty(AppSettings.Instance.SortColumn))
+            {
+                var colX = dgvSongsMaster.Columns.Cast<DataGridViewColumn>().Where(col => col.DataPropertyName == AppSettings.Instance.SortColumn).FirstOrDefault();
+                if (colX != null)
+                    dgvSongsMaster.Sort(colX, AppSettings.Instance.SortAscending ? ListSortDirection.Ascending : ListSortDirection.Descending);
+            }
+            */
+
+
+        }
+
+        private void populateDGV()
+        {
+            // Hide main dgvSongsMaster until load completes
+            dgvSongsMaster.Visible = false;
+
+            // Reload the settings for dgvSongsMaster
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSongsMaster);
+
+            // Set the current local list as the source for the DataGridView
+            setListForDGV(_localSongList);
+
+            // Below is code from TabEnter
+            // ? Apply the current SongManagerFilter as the SavedColumnFilter?
+            DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.SongManagerFilter;
+
+            // force grid data to rebind/refresh
+            dgvSongsMaster.ResetBindings();
+
+            // Restore current sorting 
+            // NOTE: Does not care if the "SaveSorting" call has been made, it doesn't do anything if so
+            statusSongsMaster.RestoreSorting(dgvSongsMaster);
+
+            dgvSongsMaster.Visible = true;
+        }
+
+        private void updateGlobalToolStrip()
+        {
+            Globals.TsLabel_MainMsg.Text = String.Format("Rocksmith Song Count: {0}", dgvSongsMaster.Rows.Count);
+            Globals.TsLabel_MainMsg.Visible = true;
+            numberOfDisabledDLC = _localSongList.Where(song => song.Enabled == "No").ToList().Count();
+            numberOfDLCPendingUpdate = 0;
+            var tsldcMsg = String.Format("Outdated: {0} | Disabled CDLC: {1}", numberOfDLCPendingUpdate, numberOfDisabledDLC);
+            Globals.TsLabel_DisabledCounter.Alignment = ToolStripItemAlignment.Right;
+            Globals.TsLabel_DisabledCounter.Text = tsldcMsg;
+            Globals.TsLabel_DisabledCounter.Visible = true;
+            Globals.TsLabel_StatusMsg.Visible = false;
+            // TemporaryDisableDatabindEvent(() => { dgvSongsMaster.Refresh(); });
+        }
+
+
+        private void applyNewSongInfo(List<SongData> newInfo)
+        {
+            // Update checkboxes based on current application settings
+            chkIncludeSubfolders.Checked = AppSettings.Instance.IncludeSubfolders;
+            chkProtectODLC.Checked = AppSettings.Instance.ProtectODLC;
+            cueSearch.Text = AppSettings.Instance.SearchString;
+
+            // Hide main dgvSongsMaster until load completes
+            dgvSongsMaster.Visible = false;
+
+            // Reload the settings for dgvSongsMaster
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSongsMaster);
+
+            // If we were able to load it from the file => use it
+            // Filter the list
+            filterListByUserSettings(ref newInfo);
+
+            // Set the list as the source for the DataGridView
+            setListForDGV(newInfo);
+
+
+            // Post arrangement analyzer message?
+            if (!AppSettings.Instance.IncludeArrangementData)
+                colSongAverageTempo.ToolTipText = "Use Arrangement Analyzer, Rescan\r\nFull to confirm BPM accuracy";
+            else
+                colSongAverageTempo.ToolTipText = "";
+
+            // Below is code from TabEnter
+            // ? Apply the current SongManagerFilter as the SavedColumnFilter?
+            DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.SongManagerFilter;
+
+            // force grid data to rebind/refresh
+            dgvSongsMaster.ResetBindings();
+
+            // Restore current sorting 
+            // NOTE: Does not care if the "SaveSorting" call has been made, it doesn't do anything if so
+            statusSongsMaster.RestoreSorting(dgvSongsMaster);
+
+            // This is the rest of the code from UpdateToolstrip
+            updateGlobalToolStrip();
+
+            dgvSongsMaster.Visible = true;
+        }
+
+        public void PopulateSongManager()
+        {
+            SMLog.Log("Populating SongManager GUI ...");
+
+            // Hide main dgvSongsMaster until load completes
+            dgvSongsMaster.Visible = false;
+
+            // Reload the settings for dgvSongsMaster
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSongsMaster);
 
             //Load Song Collection from file
-            if (!LoadSongCollectionFromFile())
+            if (!loadSongCollectionFromFile())
                 return;
 
             // Worker actually does the sorting after parsing, this is just to tell the grid that it is sorted.
@@ -380,14 +582,18 @@ namespace CustomsForgeSongManager.UControls
         /// </summary>
         public void UpdateToolStrip()
         {
+            // Update checkboxes based on current application settings
             chkIncludeSubfolders.Checked = AppSettings.Instance.IncludeSubfolders;
             chkProtectODLC.Checked = AppSettings.Instance.ProtectODLC;
             cueSearch.Text = AppSettings.Instance.SearchString;
 
             // save settings incase user made any changes to grid
-            if (Globals.RescanSongManager || Globals.ReloadSongManager)
-                Globals.Settings.SaveSettingsToFile(dgvSongsMaster);
+            //if (Globals.RescanSongManager || Globals.ReloadSongManager)
+            //    SettingsManager.sa SaveSettingsToFile(dgvSongsMaster);
 
+            // If someone asked for a rescan
+            // Nah => no one should force SongManager to do that => ask SongDataManager
+            /*
             if (Globals.RescanSongManager)
             {
                 // full rescan of song collection
@@ -395,6 +601,7 @@ namespace CustomsForgeSongManager.UControls
                 Rescan(true);
                 PopulateSongManager();
             }
+            // Else if someone asked for a reload
             else if (Globals.ReloadSongManager)
             {
                 // smart quick rescan of song collection
@@ -402,6 +609,9 @@ namespace CustomsForgeSongManager.UControls
                 Rescan(false);
                 PopulateSongManager();
             }
+            */
+            // We only need to *possibly* get the data from SongDataManager
+
 
             IncludeSubfolders(false);
             ProtectODLC();
@@ -438,7 +648,7 @@ namespace CustomsForgeSongManager.UControls
 
             Globals.TsLabel_MainMsg.Text = String.Format("Rocksmith Song Count: {0}", dgvSongsMaster.Rows.Count);
             Globals.TsLabel_MainMsg.Visible = true;
-            numberOfDisabledDLC = songList.Where(song => song.Enabled == "No").ToList().Count();
+            numberOfDisabledDLC = _localSongList.Where(song => song.Enabled == "No").ToList().Count();
             numberOfDLCPendingUpdate = 0;
             var tsldcMsg = String.Format("Outdated: {0} | Disabled CDLC: {1}", numberOfDLCPendingUpdate, numberOfDisabledDLC);
             Globals.TsLabel_DisabledCounter.Alignment = ToolStripItemAlignment.Right;
@@ -447,6 +657,8 @@ namespace CustomsForgeSongManager.UControls
             Globals.TsLabel_StatusMsg.Visible = false;
             // TemporaryDisableDatabindEvent(() => { dgvSongsMaster.Refresh(); });
         }
+
+
 
         private void CheckForUpdatesEvent(object o, DoWorkEventArgs args)
         {
@@ -539,6 +751,52 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
+        /// <summary>
+        /// Set the repair options from the global settings.
+        /// </summary>
+        private void setRepairOptionsFromGlobalSettings()
+        {
+            ignoreCheckStateChanged = true;
+            tsmiSkipRemastered.Checked = AppSettings.Instance.RepairOptions.SkipRemastered;
+            tsmiRepairsMastery.Checked = AppSettings.Instance.RepairOptions.RepairMastery;
+            tsmiRepairsPreserveStats.Checked = AppSettings.Instance.RepairOptions.PreserveStats;
+            tsmiModsPreserveStats.Checked = AppSettings.Instance.RepairOptions.PreserveStats;
+            tsmiRepairsUsingOrg.Checked = AppSettings.Instance.RepairOptions.UsingOrgFiles;
+            tsmiRepairsMultitone.Checked = AppSettings.Instance.RepairOptions.IgnoreMultitone;
+            tsmiRepairsMaxFive.Checked = AppSettings.Instance.RepairOptions.RepairMaxFive;
+            tsmiRemoveNDD.Checked = AppSettings.Instance.RepairOptions.RemoveNDD;
+            tsmiRemoveBass.Checked = AppSettings.Instance.RepairOptions.RemoveBass;
+            tsmiRemoveGuitar.Checked = AppSettings.Instance.RepairOptions.RemoveGuitar;
+            tsmiRemoveBonus.Checked = AppSettings.Instance.RepairOptions.RemoveBonus;
+            tsmiRemoveMetronome.Checked = AppSettings.Instance.RepairOptions.RemoveMetronome;
+            tsmiIgnoreStopLimit.Checked = AppSettings.Instance.RepairOptions.IgnoreStopLimit;
+            tsmiAdjustScrollSpeed.Checked = AppSettings.Instance.RepairOptions.AdjustScrollSpeed;
+            tsmiNudScrollSpeed.DecimalValue = AppSettings.Instance.RepairOptions.ScrollSpeed;
+            tsmiRemoveSections.Checked = AppSettings.Instance.RepairOptions.RemoveSections;
+            tsmiFixLowBass.Checked = AppSettings.Instance.RepairOptions.FixLowBass;
+            tsmiFixAppId.Checked = AppSettings.Instance.RepairOptions.FixAppId;
+            tsmiDLFolderProcess.Checked = AppSettings.Instance.RepairOptions.DLFolderProcess;
+            tsmiRepairsAddDD.Checked = AppSettings.Instance.RepairOptions.AddDD;
+            tsmiOverwriteDD.Checked = AppSettings.Instance.RepairOptions.OverwriteDD;
+            tsmiAddDDNumericUpDown.DecimalValue = AppSettings.Instance.RepairOptions.PhraseLength;
+            tsmiAddDDRemoveSustain.Checked = AppSettings.Instance.RepairOptions.RemoveSustain;
+
+            tsmiAddDDCfgPath.Tag = AppSettings.Instance.RepairOptions.CfgPath;
+            if (!String.IsNullOrEmpty(tsmiAddDDCfgPath.Tag.ToString()))
+                tsmiAddDDCfgPath.Text = Path.GetFileName(tsmiAddDDCfgPath.Tag.ToString());
+
+            tsmiAddDDRampUpPath.Tag = AppSettings.Instance.RepairOptions.RampUpPath;
+            if (!String.IsNullOrEmpty(tsmiAddDDRampUpPath.Tag.ToString()))
+                tsmiAddDDRampUpPath.Text = Path.GetFileName(tsmiAddDDRampUpPath.Tag.ToString());
+
+            ignoreCheckStateChanged = false;
+
+            tsmiSkipDupes.Checked = AppSettings.Instance.RepairOptions.SkipDupes; //NOTE: make sure that all other (new) repair options are set before tsmiDLFolderMonitor.Checked is set, because it calls a different OnCheckedChanged Event (which starts the Monitoring Process) and which will mess up saved settings
+
+            // starts/stops DL folder monitoring
+            tsmiDLFolderMonitor.Checked = AppSettings.Instance.RepairOptions.DLFolderMonitor;
+        }
+
         private void GetRepairOptions()
         {
             ignoreCheckStateChanged = true;
@@ -582,6 +840,10 @@ namespace CustomsForgeSongManager.UControls
             tsmiDLFolderMonitor.Checked = AppSettings.Instance.RepairOptions.DLFolderMonitor;
         }
 
+        /// <summary>
+        /// ???
+        /// </summary>
+        /// <param name="clearSearchBox"></param>
         private void IncludeSubfolders(bool clearSearchBox = true)
         {
             // search killer
@@ -591,33 +853,53 @@ namespace CustomsForgeSongManager.UControls
                 AppSettings.Instance.SearchString = String.Empty;
             }
 
-            songList = Globals.MasterCollection.ToList();
+            // So we get a list then filter it
+            _localSongList = Globals.MasterCollection.ToList();
 
+            // Filter the list based on NOT checking the includeDLCsubfolders checkbox?
             if (!chkIncludeSubfolders.Checked)
-                songList = songList.Where(x => Path.GetFileName(Path.GetDirectoryName(x.FilePath)) == "dlc").ToList();
+                _localSongList = _localSongList.Where(x => Path.GetFileName(Path.GetDirectoryName(x.FilePath)) == "dlc").ToList();
 
+            // Filter the list based on the if we checked MY CLDC (AKA only one's I've charted?)
             if (tsmiModsMyCDLC.Checked)
-                songList = (songList.Where(x => x.PackageAuthor == AppSettings.Instance.CharterName).ToList());
+                _localSongList = (_localSongList.Where(x => x.PackageAuthor == AppSettings.Instance.CharterName).ToList());
 
             // remove inlays JIC
-            songList = songList.Where(fi => !fi.FileName.ToLower().Contains("inlay")).ToList();
+            // NOTE: Inlays should've been removed upon creating the List<SongData> master list
+            //songList = songList.Where(fi => !fi.FileName.ToLower().Contains("inlay")).ToList();
 
-            LoadFilteredBindingList(songList);
+            LoadFilteredBindingList(_localSongList);
         }
 
-        private void InitializeRepairMenu()
+        /// <summary>
+        /// Prepares the repair menu by setting its initial settings.
+        /// </summary>
+        private void initializeRepairMenu()
         {
             // restore saved audio options (POC)
-            GetAudioOptions();
+            // GetAudioOptions();
+            setAudioOptionsFromGlobalSettings();
 
             // restore saved repair options
-            GetRepairOptions();
+            //GetRepairOptions();
+            setRepairOptionsFromGlobalSettings();
 
+            // Init repair drop down
+            // TODO: this is a mess
             var items = tsmiRepairs.DropDownItems;
             foreach (var item in items.OfType<ToolStripEnhancedMenuItem>().Where(item => item.CheckMarkDisplayStyle == CheckMarkDisplayStyle.RadioButton))
                 ToggleRepairMenu(item);
+
+            // Hide the repair menu
+            tsmiRepairs.HideDropDown();
         }
 
+        /// <summary>
+        /// Converts the list given to a FilteredBindingList,
+        /// then puts it as the DataSource of a new BindingSource,
+        /// then LOADS that BindingSource as the DataSource of the DataGridView.
+        /// </summary>
+        /// <param name="list"></param>
         private void LoadFilteredBindingList(dynamic list)
         {
             bindingCompleted = false;
@@ -625,76 +907,168 @@ namespace CustomsForgeSongManager.UControls
             // sortable binding list with dropdown filtering
             dgvSongsMaster.AutoGenerateColumns = false;
             FilteredBindingList<SongData> fbl = new FilteredBindingList<SongData>(list);
-            BindingSource bs = new BindingSource { DataSource = fbl };
-            dgvSongsMaster.DataSource = bs;
+            _dgvBindingSource = new BindingSource { DataSource = fbl };
+            dgvSongsMaster.DataSource = _dgvBindingSource;
         }
 
-        private bool LoadSongCollectionFromFile()
+        /// <summary>
+        /// Sets the given list as the datasource for the SongManager's DGV.
+        /// </summary>
+        /// <param name="list"></param>
+        private void setListForDGV(List<SongData> list)
         {
-            bool correctVersion = false;
+            // Set the DGV to not auto generate columns
+            dgvSongsMaster.AutoGenerateColumns = false;
 
-            try
+            // Create a "sortable binding list with dropdown filtering"
+            _localSongList = list;
+            FilteredBindingList<SongData> fbl = new FilteredBindingList<SongData>(list);
+            _dgvBindingSource = new BindingSource { DataSource = fbl };
+
+            // Bind it to our SongManager DGV
+            dgvSongsMaster.DataSource = _dgvBindingSource;
+
+            dgvSongsMaster.Refresh();
+        }
+
+        /// <summary>
+        /// Filters the given list by the relevant user settings in the Song Manager.
+        /// </summary>
+        /// <param name="list"></param>
+        private void filterListByUserSettings(ref List<SongData> list)
+        {
+
+            // Filter the list based on the Song Manager checkboxes present
+            // Filter the list based on NOT checking the includeDLCsubfolders checkbox?
+            if (!chkIncludeSubfolders.Checked)
+                list = list.Where(x => Path.GetFileName(Path.GetDirectoryName(x.FilePath)) == "dlc").ToList();
+
+            // Filter the list based on the if we checked MY CLDC (AKA only one's I've charted?)
+            if (tsmiModsMyCDLC.Checked)
+                list = (list.Where(x => x.PackageAuthor == AppSettings.Instance.CharterName).ToList());
+
+            // Protects the OLDC songs from being modified
+            ProtectODLC();
+
+            // Apply search filters, if there is a search string
+            // apply saved search (filters can not be applied the same way)
+            if (!String.IsNullOrEmpty(AppSettings.Instance.SearchString))
             {
-                // load songsInfo.xml if it exists 
-                if (File.Exists(Constants.SongsInfoPath))
+                List<SongData> newSongData = filterListBySearchString(list);
+                list = newSongData;
+            }
+        }
+
+        private List<SongData> filterListBySearchString(List<SongData> list)
+        {
+            var criteria = AppSettings.Instance.SearchString;
+            var lowerCriteria = AppSettings.Instance.SearchString.ToLower();
+            AppSettings.Instance.SearchString = lowerCriteria;
+
+            List<SongData> results = new List<SongData>();
+            if (list != null && list.Count > 0)
+            {
+                if (chkAdvancedSearch.Checked)
+                    results = list.Where(x => x != null && x.ArtistTitleAlbum != null && x.ArtistTitleAlbum.ToLower().Contains(lowerCriteria) ||
+                        x.Tunings1D.ToLower().Contains(lowerCriteria) ||
+                        x.Arrangements1D.ToLower().Contains(lowerCriteria) ||
+                        x.PackageAuthor.ToLower().Contains(lowerCriteria) ||
+                        (x.IgnitionAuthor != null && x.IgnitionAuthor.ToLower().Contains(lowerCriteria)) ||
+                        (x.IgnitionID != null && x.IgnitionID.ToLower().Contains(lowerCriteria)) ||
+                        x.SongYear.ToString().Contains(criteria) ||
+                        x.PackageComment.ToLower().Contains(criteria) ||
+                        x.FilePath.ToLower().Contains(lowerCriteria)).ToList();
+                else
+                    results = _localSongList.Where(x => x != null && x.ArtistTitleAlbum.ToLower().Contains(lowerCriteria)).ToList();
+            }
+            return results;
+        }
+
+        /// <summary>
+        /// This method attempts to load the song collection from a songInfo file,
+        /// </summary>
+        /// <param name="songInfo">The SongData info loaded</param>
+        /// <returns>True if successful in loading the SongData from the songInfo file.</returns>
+        private bool tryLoadSongInfoFromFile(out List<SongData> songInfo)
+        {
+            songInfo = null;
+            // load songsInfo.xml if it exists 
+            if (File.Exists(DirectoryManager.SongsInfoPath))
+            {
+                XmlDocument dom = new XmlDocument();
+                dom.Load(DirectoryManager.SongsInfoPath);
+                SMLog.Log("Loaded File: " + Path.GetFileName(DirectoryManager.SongsInfoPath));
+
+                // remove version info node
+                var listNode = dom["ArrayOfSongData"];
+                if (listNode != null)
                 {
-                    XmlDocument dom = new XmlDocument();
-                    dom.Load(Constants.SongsInfoPath);
-                    SMLog.Log("Loaded File: " + Path.GetFileName(Constants.SongsInfoPath));
-
-                    // remove version info node
-                    var listNode = dom["ArrayOfSongData"];
-                    if (listNode != null)
+                    var versionNode = listNode["SongDataList"];
+                    if (versionNode != null)
                     {
-                        var versionNode = listNode["SongDataList"];
-                        if (versionNode != null)
-                        {
-                            if (versionNode.HasAttribute("version"))
-                                correctVersion = (versionNode.GetAttribute("version") == SongData.SongDataVersion);
+                        listNode.RemoveChild(versionNode);
+                    }
 
-                            listNode.RemoveChild(versionNode);
-                        }
+                    songInfo = SerialExtensions.XmlDeserialize<List<SongData>>(listNode.OuterXml);
 
-                        songList = SerialExtensions.XmlDeserialize<List<SongData>>(listNode.OuterXml);
-
-                        if (songList == null || songList.Count == 0)
-                            throw new SongCollectionException(songList == null ? "Master Collection = null" : "Master Collection.Count = 0");
-
-                        Globals.MasterCollection = new BindingList<SongData>(songList);
+                    if (songInfo == null || songInfo.Count == 0)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
                     }
                 }
+            }
+            return false;
+        }
 
-                // smart scan
-                if (correctVersion && !AppSettings.Instance.FirstRun)
+        /// <summary>
+        /// This method attempts to load the song collection from a songInfo file, 
+        /// but if it can't will rescan the songs
+        /// This method does too much and needs to be refactored.
+        /// </summary>
+        /// <returns></returns>
+        private void tryLoadSongCollectionFromFile()
+        {
+
+            // If we can successfully load the songInfo file
+            if (SongDataManager.TryLoadSongInfoFromFile(out List<SongData> songInfo))
+            {
+                // Perform a "quick" rescan
+                SMLog.Log("Performing quick rescan of song collection ...");
+                Rescan(false);
+            }
+        }
+
+        /// <summary>
+        /// This method attempts to load the song collection from a songInfo file, 
+        /// but if it can't will rescan the songs
+        /// This method does too much and needs to be refactored.
+        /// </summary>
+        /// <returns></returns>
+        private bool loadSongCollectionFromFile()
+        {
+            try
+            {
+                // If we can successfully load the songInfo file
+                if (SongDataManager.TryLoadSongInfoFromFile(out List<SongData> songInfo))
                 {
+                    // Perform a "quick" rescan
                     SMLog.Log("Performing quick rescan of song collection ...");
                     Rescan(false);
                 }
+                // If we cannot load the songInfo file
                 else
                 {
-                    var hdrMsg = "CFSM Initial Run ...";
-                    if (File.Exists(Constants.SongsInfoPath))
-                    {
-                        hdrMsg = "CFSM New SongData Version ...";
-                        SMLog.Log("<WARNING> Incorrect song collection version found ...");
-                    }
+                    // We must rescan the song collection
 
-                    try
-                    {
-                        // DO NOT use the bulldozer here
-                        // 'My Documents/CFSM' may contain some original files
-                        ZipUtilities.RemoveReadOnlyAttribute(Constants.WorkFolder);
-                        GenExtensions.DeleteFile(Constants.SongsInfoPath);
-                        GenExtensions.DeleteFile(Constants.AppSettingsPath);
-                        GenExtensions.DeleteDirectory(Constants.GridSettingsFolder);
-                        GenExtensions.DeleteDirectory(Constants.TaggerWorkingFolder);
-                    }
-                    catch (Exception ex)
-                    {
-                        SMLog.Log("<ERROR> Cleaning " + Path.GetFileName(Constants.WorkFolder) + " : " + ex.Message);
-                    }
+                    // Delete/Clear settings files related to the master collection of songs
+                    FileTools.DeleteApplicationSettingsFiles();
 
                     // auto show release notes when there are significant or SongData revisions
+                    // ??? need to make this better
                     frmNoteViewer.ViewExternalFile("ReleaseNotes.txt", "Release Notes");
 
                     // switch to Setting tab so user can customize first run settings
@@ -702,7 +1076,7 @@ namespace CustomsForgeSongManager.UControls
                                  "Please customize the CFSM Settings options" + Environment.NewLine +
                                  "before returning to the Song Manager tab." + Environment.NewLine;
 
-                    BetterDialog2.ShowDialog(diaMsg, hdrMsg, null, null, "Ok", Bitmap.FromHicon(SystemIcons.Information.Handle), "ReadMe", 0, 150);
+                    BetterDialog2.ShowDialog(diaMsg, "First-Run Settings", null, null, "Ok", Bitmap.FromHicon(SystemIcons.Information.Handle), "ReadMe", 0, 150);
                     Globals.DgvCurrent = dgvSongsMaster;
 
                     // selects Settings tabmenu even if tab order is changed
@@ -750,18 +1124,16 @@ namespace CustomsForgeSongManager.UControls
             return true;
         }
 
-        private void InitializeSongsMaster()
+
+        private void InitializeSongsMasterDataGridView()
         {
             // respect processing order
             DgvExtensions.DoubleBuffered(dgvSongsMaster);
             CFSMTheme.InitializeDgvAppearance(dgvSongsMaster);
 
             // reload column order, width, visibility, and settings
-            //Globals.Settings.LoadSettingsFromFile(dgvSongsMaster, true);
-
             // If we successfully loaded the DataGridView settings
-            string path = DirectoryManager.GetGridSettingsPathForGridName(dgvSongsMaster.Name);
-            if (SettingsManager.TryLoadDataGridViewSettingsFromFile(path, out RADataGridViewSettings settings))
+            if (FileTools.TryLoadDataGridViewSettingsFromFile(dgvSongsMaster, out RADataGridViewSettings settings))
             {
                 // Use it to reload grid settings
                 dgvSongsMaster.ReLoadColumnOrder(SettingsManager.ManagerGridSettings.ColumnOrder);
@@ -769,10 +1141,9 @@ namespace CustomsForgeSongManager.UControls
             else
             {
                 // If we can't load the settings, create a new settings object
-                settings = RAExtensions.SaveColumnOrder(dgvSongsMaster);
-
                 // Set the settings as the new DGV settings
-                SettingsManager.SetDataGridViewSettings(settings);
+                //SettingsManager.SetDataGridViewSettings(settings);
+                SettingsManager.SetDataGridViewSettings(dgvSongsMaster);
 
                 // Save the settings to file
                 FileTools.SaveDataGridViewSettingsToFile(settings, dgvSongsMaster);
@@ -883,6 +1254,9 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
+        /// <summary>
+        /// Protects the ODLC songs in the current dgvSongsMaster from being selected.
+        /// </summary>
         private void ProtectODLC()
         {
             // deselect and protect ODLC 
@@ -918,6 +1292,23 @@ namespace CustomsForgeSongManager.UControls
             // BUT that means the PopulateSongManager() method below can trigger ANOTHER rescan
             // when it calls LoadSongCollectionFromFile(). These rescans run in parallel to eachother
             // when on the SongManager tab and clicking the "Full Rescan" Rescan option.
+            //PopulateSongManager();
+            //UpdateToolStrip();
+        }
+
+        private void refreshDgv(bool fullRescan)
+        {
+            bindingCompleted = false;
+            dgvPainted = false;
+
+            // NOTE: Now that we're trying to multithread this, the Rescan() method called below 
+            // will exit before the full rescan is actually finished
+            Rescan(fullRescan);
+
+            // NOTE continued: The above method can now exit before the rescan is complete,
+            // BUT that means the PopulateSongManager() method below can trigger ANOTHER rescan
+            // when it calls LoadSongCollectionFromFile(). These rescans run in parallel to eachother
+            // when on the SongManager tab and clicking the "Full Rescan" Rescan option.
             PopulateSongManager();
             UpdateToolStrip();
         }
@@ -940,16 +1331,13 @@ namespace CustomsForgeSongManager.UControls
             Refresh();
         }
 
+        /// <summary>
+        /// Scans the Rocksmith 2014 DLC folder for new or updated songs.
+        /// </summary>
+        /// <param name="fullRescan"></param>
         private void Rescan(bool fullRescan)
         {
-            Thread.Sleep(200); // debounce
-            try
-            {
-                dgvSongsDetail.Visible = false;
-                dgvSongsMaster.DataSource = null;
-            }
-            catch {/* DO NOTHING */}
-
+            //Thread.Sleep(200); // debounce
 
             // this should never happen
             if (String.IsNullOrEmpty(AppSettings.Instance.RSInstalledDir))
@@ -957,6 +1345,9 @@ namespace CustomsForgeSongManager.UControls
                 MessageBox.Show("<ERROR> Rocksmith 2014 Installation Directory setting is null or empty ...", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+
+            // The below code seems to be here in-case the user decided to manually delete songs
+            // This is not a good place for this
 
             // this is done here in case user decided to manually delete songs
             List<string> filesList = Worker.FilesList(Constants.Rs2DlcFolder, AppSettings.Instance.IncludeRS1CompSongs, AppSettings.Instance.IncludeRS2BaseSongs, AppSettings.Instance.IncludeCustomPacks);
@@ -983,27 +1374,40 @@ namespace CustomsForgeSongManager.UControls
                 // this provides better user option than just killing the app down
                 return;
             }
+            // endBadCode
+
+
+            // Handle DGV stuff prior to scan
+            try
+            {
+                dgvSongsDetail.Visible = false;
+                dgvSongsMaster.DataSource = null;
+            }
+            catch {/* DO NOTHING */}
 
             ToggleUIControls(false);
 
+            // If asking for a "full rescan" 
             if (fullRescan)
             {
                 // force full rescan by clearing MasterCollection before calling BackgroundScan
                 Globals.MasterCollection.Clear();
+
                 // force reload
+                // => by asking the classes that look at these varibles to do something about it
                 Globals.ReloadArrangements = true;
                 Globals.ReloadDuplicates = true;
                 Globals.ReloadSetlistManager = true;
+
                 // do not reload ProfileSongLists
                 //Globals.ReloadProfileSongLists = true;
+
+                // Uncheck the "My CDLC" checkbox
                 tsmiModsMyCDLC.Checked = false;
             }
 
             // check for multithreaded processing
             multithreadCheck();
-
-            // run new worker
-
 
             // Run the parsing process
             _controller.ParseSongs();
@@ -1018,17 +1422,6 @@ namespace CustomsForgeSongManager.UControls
                 return;
             }
             */
-        }
-
-        /// <summary>
-        /// This method is only here because of the usage of SongManager.songList
-        /// => Remove usage of this once we properly implement bindings for this view.
-        /// </summary>
-        public void PopulateLocalSongListMember()
-        {
-            songList = Globals.MasterCollection.ToList();
-
-            ToggleUIControls(true);
         }
 
         /// <summary>
@@ -1078,14 +1471,14 @@ namespace CustomsForgeSongManager.UControls
             var lowerCriteria = criteria.ToLower();
             AppSettings.Instance.SearchString = lowerCriteria;
 
-            if (songList.Count == 0)
+            if (_localSongList.Count == 0)
                 IncludeSubfolders(false);
 
             List<SongData> results = new List<SongData>();
-            if (songList != null && songList.Count > 0)
+            if (_localSongList != null && _localSongList.Count > 0)
             {
                 if (chkAdvancedSearch.Checked)
-                    results = songList.Where(x => x != null && x.ArtistTitleAlbum != null && x.ArtistTitleAlbum.ToLower().Contains(lowerCriteria) ||
+                    results = _localSongList.Where(x => x != null && x.ArtistTitleAlbum != null && x.ArtistTitleAlbum.ToLower().Contains(lowerCriteria) ||
                         x.Tunings1D.ToLower().Contains(lowerCriteria) ||
                         x.Arrangements1D.ToLower().Contains(lowerCriteria) ||
                         x.PackageAuthor.ToLower().Contains(lowerCriteria) ||
@@ -1095,7 +1488,7 @@ namespace CustomsForgeSongManager.UControls
                         x.PackageComment.ToLower().Contains(criteria) ||
                         x.FilePath.ToLower().Contains(lowerCriteria)).ToList();
                 else
-                    results = songList.Where(x => x != null && x.ArtistTitleAlbum.ToLower().Contains(lowerCriteria)).ToList();
+                    results = _localSongList.Where(x => x != null && x.ArtistTitleAlbum.ToLower().Contains(lowerCriteria)).ToList();
 
                 if (!chkIncludeSubfolders.Checked)
                     results = results.Where(x => x != null && Path.GetFileName(Path.GetDirectoryName(x.FilePath)) == "dlc").ToList();
@@ -1273,6 +1666,10 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
+        /// <summary>
+        /// Enable/Disable UI controls on the Song Manager Tab's View.
+        /// </summary>
+        /// <param name="enable"></param>
         private void ToggleUIControls(bool enable)
         {
             GenExtensions.InvokeIfRequired(cueSearch, delegate { cueSearch.Enabled = enable; });
@@ -1693,7 +2090,7 @@ namespace CustomsForgeSongManager.UControls
 
                 if (String.IsNullOrEmpty(dgvSongsMaster.Rows[e.RowIndex].Cells["colShowDetail"].Tag as String))
                 {
-                    var songDetails = songList.Where(master => (master.DLCKey == songKey)).ToList();
+                    var songDetails = _localSongList.Where(master => (master.DLCKey == songKey)).ToList();
                     if (!songDetails.Any())
                         MessageBox.Show("No Song Details Found");
                     else
@@ -2381,7 +2778,7 @@ namespace CustomsForgeSongManager.UControls
             }
             return;
 
-            var stopHere = songList;
+            var stopHere = _localSongList;
             var stopHere2 = Globals.MasterCollection;
             var stopHere3 = AppSettings.Instance.ArrangementAnalyzerFilter;
 
@@ -2457,7 +2854,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (tsmiFilesIncludeODLC.Checked)
             {
-                selection.AddRange(songList.Where(x => x.PackageAuthor == "Ubisoft").ToList());
+                selection.AddRange(_localSongList.Where(x => x.PackageAuthor == "Ubisoft").ToList());
                 // prevent double selecting ODLC files
                 selection = selection.GroupBy(x => x.FilePath).Select(s => s.First()).ToList();
             }
@@ -2508,7 +2905,7 @@ namespace CustomsForgeSongManager.UControls
 
             if (tsmiFilesIncludeODLC.Checked)
             {
-                selection.AddRange(songList.Where(x => x.PackageAuthor == "Ubisoft").ToList());
+                selection.AddRange(_localSongList.Where(x => x.PackageAuthor == "Ubisoft").ToList());
                 // prevent double selecting ODLC files
                 selection = selection.GroupBy(x => x.FilePath).Select(s => s.First()).ToList();
             }
@@ -2839,15 +3236,17 @@ namespace CustomsForgeSongManager.UControls
             return dgvSongsMaster;
         }
 
+        /// <summary>
+        /// This method is called when the Song Manager tab is activated.
+        /// </summary>
         public void TabEnter()
         {
             //var debugMe = Globals.MasterCollection;
-            Globals.DgvCurrent = dgvSongsMaster;
-            DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.SongManagerFilter;
-            GetGrid().ResetBindings(); // force grid data to rebind/refresh
-            statusSongsMaster.RestoreSorting(Globals.DgvCurrent);
-            SMLog.Log("SongManagerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.SongManagerFilter) ? "None" : AppSettings.Instance.SongManagerFilter));
-            SMLog.Log("Song Manager GUI Activated ...");
+
+            // Set SongManager's dgv grid as the current
+            //Globals.DgvCurrent = dgvSongsMaster;
+
+            populateView();
         }
 
         public void TabLeave()
@@ -2964,6 +3363,16 @@ namespace CustomsForgeSongManager.UControls
             return audioOptions;
         }
 
+        private void setAudioOptionsFromGlobalSettings()
+        {
+            tsmiCorrectionFactor.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.CorrectionFactor, CultureInfo.InvariantCulture);
+            tsmiCorrectionMultiplier.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.CorrectionMultiplier, CultureInfo.InvariantCulture);
+            tsmiTargetAudioVolume.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.TargetAudioVolume, CultureInfo.InvariantCulture);
+            tsmiTargetPreviewVolume.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.TargetPreviewVolume, CultureInfo.InvariantCulture);
+            tsmiTargetToneVolume.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.TargetToneVolume, CultureInfo.InvariantCulture);
+            tsmiTargetLUFS.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.TargetLUFS, CultureInfo.InvariantCulture);
+        }
+
         private void GetAudioOptions()
         {
             tsmiCorrectionFactor.DecimalValue = Convert.ToDecimal(AppSettings.Instance.AudioOptions.CorrectionFactor, CultureInfo.InvariantCulture);
@@ -3025,6 +3434,26 @@ namespace CustomsForgeSongManager.UControls
         {
             frmOutdatedSongs frmOutdatedSongs = new frmOutdatedSongs();
             frmOutdatedSongs.Show();
+        }
+
+        /// <summary>
+        /// Method that handles events from Event Producers.
+        /// </summary>
+        /// <param name="appEvent"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void HandleEvent(AppEvent appEvent)
+        {
+            // If this is a song master list changed
+            if (appEvent is SongMasterListChangedEvent)
+            {
+                // TODO: Handle this event
+
+                // Refresh the song master list
+                _mainWindow.Invoke(delegate 
+                {
+                    applyNewSongInfo(((SongMasterListChangedEvent)appEvent).SongData);
+                });
+            }
         }
     }
 }

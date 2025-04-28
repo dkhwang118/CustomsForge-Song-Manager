@@ -1,5 +1,7 @@
 ﻿using CustomsForgeSongManager.DataObjects;
 using CustomsForgeSongManager.LocalTools;
+using CustomsForgeSongManager.UControls;
+using CustomsForgeSongManager.UITheme;
 using DataGridViewTools;
 using GenTools;
 using System;
@@ -23,6 +25,11 @@ namespace CustomsForgeSongManager.DataManager
         private static Dictionary<string, ApplicationSetting> _appSettings = new Dictionary<string, ApplicationSetting>();
 
         /// <summary>
+        /// The list of DataGridView settings, where the key is the name of the DataGridView.
+        /// </summary>
+        private static Dictionary<string, RADataGridViewSettings> _dgvSettingsByDgvName = new Dictionary<string, RADataGridViewSettings>();
+
+        /// <summary>
         /// The lock object to prevent cross-thread issues with access to the application settings.
         /// </summary>
         private static ReaderWriterLockSlim _appSettingsLock = new ReaderWriterLockSlim();
@@ -32,11 +39,11 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         private static AppSettings _appSettingsInstance = null;
 
-        private static RADataGridViewSettings _gridSettings = null;
+        private static RADataGridViewSettings _currentDgvSettings = null;
 
         public static RADataGridViewSettings ManagerGridSettings
         {
-            get { return _gridSettings; }
+            get { return _currentDgvSettings; }
         }
 
         /// <summary>
@@ -221,47 +228,83 @@ namespace CustomsForgeSongManager.DataManager
             return false;
         }
 
-
-        public static bool TryLoadDataGridViewSettingsFromFile(string settingsPath, out RADataGridViewSettings settings)
-        {
-            settings = null;
-
-            // If a file exists at the given path
-            if (File.Exists(settingsPath))
-            {
-                try
-                {
-                    // load the settings from the file
-                    settings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(settingsPath);
-
-                    // Set it to the RAExtensions class
-                    SetDataGridViewSettings(settings);
-
-                    SMLog.Log("Loaded File: " + Path.GetFileName(settingsPath));
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    SMLog.Log("<ERROR> GridSettings could not be loaded ...");
-                    SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
-                    SMLog.Log(ex.Message);
-                    RAExtensions.ManagerGridSettings = null; // reset
-                    _gridSettings = null; // reset
-                }
-            }
-
-            return false;
-        }
-
-        public static void SetDataGridViewSettings(RADataGridViewSettings settings)
+        public static void SetDataGridViewSettings(RADataGridView dgv)
         {
             // Get the write lock
             _appSettingsLock.EnterWriteLock();
+
+            // Get the settings
+            RADataGridViewSettings settings = RAExtensions.SaveColumnOrder(dgv);
+
             // Set the settings
             RAExtensions.ManagerGridSettings = settings;
-            _gridSettings = settings;
+            _currentDgvSettings = settings;
+            _dgvSettingsByDgvName[dgv.Name] = settings;
+
             // Release the write lock
             _appSettingsLock.ExitWriteLock();
+        }
+
+        public static void SetDataGridViewSettings(RADataGridViewSettings settings, string dgvName)
+        {
+            // Get the write lock
+            _appSettingsLock.EnterWriteLock();
+
+            // Set the settings
+            RAExtensions.ManagerGridSettings = settings;
+            _currentDgvSettings = settings;
+            _dgvSettingsByDgvName[dgvName] = settings;
+
+            // Release the write lock
+            _appSettingsLock.ExitWriteLock();
+        }
+
+        /// <summary>
+        /// Loads or initializes the DataGridView settings for the given DataGridView.
+        /// </summary>
+        /// <param name="dgv"></param>
+        public static void LoadOrInitializeDataGridViewSettings(ref RADataGridView dgv)
+        {
+            RADataGridViewSettings settings = null;
+
+            // Check if the DGV settings are already stored in RAM 
+            if (_dgvSettingsByDgvName.TryGetValue(dgv.Name, out settings))
+            {
+                // If the settings are already stored, this means these are the latest version
+                // => Apply them as the current settings
+                SetDataGridViewSettings(settings, dgv.Name);
+
+                // => Apply them to the ref DGV
+                dgv.ReLoadColumnOrder(settings.ColumnOrder);
+            }
+            else  // If the settings are not stored, we need to try loading them from file
+            {
+                // => Load the settings from file
+                // respect processing order => ?????
+                DgvExtensions.DoubleBuffered(dgv);
+                CFSMTheme.InitializeDgvAppearance(dgv);
+
+                // reload column order, width, visibility, and settings
+                // If we successfully loaded the DataGridView settings
+                if (FileTools.TryLoadDataGridViewSettingsFromFile(dgv, out settings))
+                {
+                    // Post it to the settings
+                    SetDataGridViewSettings(settings, dgv.Name);
+
+                    // Use it to reload grid settings
+                    dgv.ReLoadColumnOrder(settings.ColumnOrder);
+                }
+                else // If we can't load the settings, create a new settings object
+                {
+                    // Set the settings as the new DGV settings
+                    SetDataGridViewSettings(dgv);
+
+                    // Save the settings to file
+                    FileTools.SaveDataGridViewSettingsToFile(settings, dgv);
+                }
+            }
+
+
         }
     }
 }

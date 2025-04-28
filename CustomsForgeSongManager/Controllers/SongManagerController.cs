@@ -114,7 +114,7 @@ namespace CustomsForgeSongManager.Controllers
         public void ParseSongs()
         {
             // Create the worker
-            ParseSongsWorker worker = new ParseSongsWorker(_songManagerControl);
+            ParseSongsWorker worker = new ParseSongsWorker();
 
             // Start it working
             worker.RunWorkerAsync();

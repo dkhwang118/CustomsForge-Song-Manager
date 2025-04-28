@@ -20,6 +20,7 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using CustomsForgeSongManager.UControls;
 using CustomsForgeSongManager.Properties;
+using System.Runtime.CompilerServices;
 
 namespace CustomsForgeSongManager.Workers
 {
@@ -28,7 +29,6 @@ namespace CustomsForgeSongManager.Workers
     /// </summary>
     public class ParseSongsWorker : ControllableWorker
     {
-
         /// <summary>
         /// Queue to store Log messages from worker threads for reporting to the UI.
         /// </summary>
@@ -55,27 +55,34 @@ namespace CustomsForgeSongManager.Workers
         private List<Thread> _activeThreads = new List<Thread>();
 
         /// <summary>
-        /// The current song manager view.
-        /// NOTE: Only need because there is the SongManager.songList member that is used
-        /// => Can remove this reference once we remove the use of that member.
-        /// </summary>
-        private SongManager _songManagerView;
-
-        /// <summary>
         /// Stopwatch used to track the time taken to parse songs.
         /// </summary>
         private Stopwatch _counterStopwatch = null;
 
-        public ParseSongsWorker(SongManager songManagerView)
+        /// <summary>
+        /// Action to perform when the parsing is complete.
+        /// </summary>
+        private Action _actionOnComplete = null;
+
+        /// <summary>
+        /// List of song data that has been parsed.
+        /// </summary>
+        public List<SongData> SongData { get; private set; } = null;
+
+        /// <summary>
+        /// Constructor for the ParseSongsWorker class.
+        /// </summary>
+        /// <param name="actionOnComplete">Action to perform after the parsing work has been completed.</param>
+        public ParseSongsWorker(Action actionOnComplete = null)
         {
             // Set default params
             WorkerSupportsCancellation = true;
             WorkerReportsProgress = true;
-            _songManagerView = songManagerView;
 
             // Hook the event handlers
             this.DoWork += parseSongs_DoWork;
             this.RunWorkerCompleted += parseSongs_OnWorkComplete;
+            _actionOnComplete = actionOnComplete;
         }
 
 
@@ -115,42 +122,15 @@ namespace CustomsForgeSongManager.Workers
                 int coreCount = SysExtensions.GetCoreCount();
                 Thread[] workThreads = initializeParseSongThreads(coreCount);
 
-                // If the songs were parsed successfully
-                if (tryRunBackgroundParsingWork(workThreads))
-                {
-                    // Finalize the work
-                    finalizeParsingSongsWork();
-                }
+                // Do the work
+                DoParsingWork(workThreads);
             }
-        }
-
-
-        private void parseSongs_OnWorkComplete(object sender, RunWorkerCompletedEventArgs e)
-        {
-            GenExtensions.InvokeIfRequired(_songManagerView, delegate { Globals.TsLabel_Cancel.Visible = false; });
-
-            if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
-            {
-                // bWorker.Abort(); // don't use abort
-                SMLog.Log(Resources.UserCancelledProcess);
-                Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
-                Globals.WorkerFinished = Globals.Tristate.Cancelled;
-            }
-            else
-            {
-                //WorkerProgress(100);
-
-                SMLog.Log(String.Format("Finished multithread parsing took: {0}", _counterStopwatch.Elapsed));
-                Globals.WorkerFinished = Globals.Tristate.True;
-            }
-
-            Globals.IsScanning = false;
         }
 
         /// <summary>
         /// Method that runs the threads to parse the songs and handles the reporting of progress from said threads.
         /// </summary>
-        private bool tryRunBackgroundParsingWork(Thread[] parseSongsThreads)
+        private void DoParsingWork(Thread[] parseSongsThreads)
         {
             // Start each thread
             foreach (var thread in parseSongsThreads)
@@ -199,20 +179,44 @@ namespace CustomsForgeSongManager.Workers
                     // If we have messages, dequeue them and send them to the UI
                     while (_messageQueue.TryDequeue(out var message))
                     {
-                        SMLog.Log(message);              
+                        SMLog.Log(message);
                     }
                 }
             }
-
-            // Return true for now, but when we can cancel the worker, return false if cancelled
-            return true;
         }
 
         /// <summary>
-        /// Method run after the parsing of songs is complete.
+        /// Method that runs when the background worker has completed its work.
         /// </summary>
-        private void finalizeParsingSongsWork()
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void parseSongs_OnWorkComplete(object sender, RunWorkerCompletedEventArgs e)
         {
+            // Change the toolStrip cancel label to not visible
+            // TODO: This needs to only be done on the song manager view itself
+            //GenExtensions.InvokeIfRequired(_songManagerView, delegate { Globals.TsLabel_Cancel.Visible = false; });
+
+            // Handle the Globals.Tristate
+            // This eventually needs to go
+            if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
+            {
+                // bWorker.Abort(); // don't use abort
+                SMLog.Log(Resources.UserCancelledProcess);
+                Globals.TsLabel_MainMsg.Text = Resources.UserCancelled;
+                Globals.WorkerFinished = Globals.Tristate.Cancelled;
+            }
+            else
+            {
+                //WorkerProgress(100);
+
+                SMLog.Log(String.Format("Finished multithread parsing took: {0}", _counterStopwatch.Elapsed));
+                Globals.WorkerFinished = Globals.Tristate.True;
+            }
+
+            // Set the scanning flag
+            Globals.IsScanning = false;
+
+
             // Create the finalized list
             List<SongData> parsedSongs = _parsedSongData.ToList();
 
@@ -249,18 +253,30 @@ namespace CustomsForgeSongManager.Workers
                 }
             }
 
+            // -- CRITCAL -- this populates Arrangement DLCKey info in Arrangements2D
+            parsedSongs.ForEach(a => a.Arrangements2D.ToList().ForEach(arr => arr.Parent = a));
+
+            // Set the list of parsed songs to this object's property for outside access
+            SongData = parsedSongs;
+
             // Bind the parsed songs to the global master list
             Globals.MasterCollection = new BindingList<SongData>(parsedSongs);
 
             // -- CRITCAL -- this populates Arrangement DLCKey info in Arrangements2D
-            Globals.MasterCollection.ToList().ForEach(a => a.Arrangements2D.ToList().ForEach(arr => arr.Parent = a));
+            //Globals.MasterCollection.ToList().ForEach(a => a.Arrangements2D.ToList().ForEach(arr => arr.Parent = a));
             //counterStopwatch.Stop();
 
             // Save the parsed songs collection to the songsInfo file
-            FileTools.SaveSongCollectionToFile();
+            //FileTools.SaveSongCollectionToFile();
 
             // TODO: Update the UI
-            _songManagerView.PopulateLocalSongListMember();
+            //_songManagerView.PopulateLocalSongListMember();
+
+            // If there is an action to perform on completion, do it
+            if (_actionOnComplete != null)
+            {
+                _actionOnComplete.Invoke();
+            }
         }
 
         private bool tryInitializeWorkerData(out string processMessage)

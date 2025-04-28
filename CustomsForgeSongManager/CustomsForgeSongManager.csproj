@@ -193,15 +193,24 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AppEvents\AppEventManager.cs" />
+    <Compile Include="AppEvents\Event\SettingsChangedEvent.cs" />
+    <Compile Include="AppEvents\Event\SongMasterListChangedEvent.cs" />
+    <Compile Include="AppEvents\IEventConsumer.cs" />
     <Compile Include="Controllers\SongManagerController.cs" />
     <Compile Include="DataManager\DirectoryManager.cs" />
     <Compile Include="DataManager\SettingsManager.cs" />
+    <Compile Include="DataManager\SongDataManager.cs" />
     <Compile Include="DataObjects\AbstractApplicationSetting.cs" />
     <Compile Include="DataObjects\ApplicationSetting.cs" />
     <Compile Include="DataObjects\ArrangementData.cs" />
     <Compile Include="DataObjects\IgnitionSong.cs" />
     <Compile Include="DataObjects\Model.cs" />
     <Compile Include="DataObjects\OfficialSong.cs" />
+    <Compile Include="AppEvents\AppEvent.cs" />
+    <Compile Include="AppEvents\Event\StateChangedEvent.cs" />
+    <Compile Include="AppEvents\EventConsumerTunnel.cs" />
+    <Compile Include="AppEvents\EventProducer.cs" />
     <Compile Include="Forms\frmLocalProfiles.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -82,7 +82,6 @@ namespace CustomsForgeSongManager.Forms
             // Setup the log textbox
             SMLog.SetMainLogTextBox(tbLog);
 
-
             // First - Try to load the application settings
             // If we can't load the app settings from the file, we will create a new one
             if (!SettingsManager.TryLoadApplicationSettingsFromFile(DirectoryManager.AppSettingsPath))
@@ -183,6 +182,11 @@ namespace CustomsForgeSongManager.Forms
             };
 
 
+            //==================================================
+            //          Data Processing Before Showing Form
+            //==================================================
+
+
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
 
             ResetBottomToolStrip();
@@ -223,14 +227,18 @@ namespace CustomsForgeSongManager.Forms
                 SMLog.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
             }
 
+            // Try to load our Song Master Collection from file
+            bool loadSuccess = SongDataManager.TryLoadSongInfoFromFile(out List<SongData> songInfo);
 
 
-
-            // If this is the first run
-            if (AppSettings.Instance.FirstRun)
+            // If this is the first run OR we didn't load our song info successfully
+            if (AppSettings.Instance.FirstRun || !loadSuccess)
             {
                 // Set the first page shown to be the Settings tab
                 tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSettings);
+
+                // Load the Settings tab
+                loadSettingsTabPage();
             }
             else
             {
@@ -400,7 +408,7 @@ namespace CustomsForgeSongManager.Forms
             // Call UpdateToolStrip on the Song Manager
             // NOTE: This is currently a mess of an update that seems to do a lot
             // ==> eventually need to refactor this to only update what's necessary
-            songManager.UpdateToolStrip();
+            //songManager.UpdateToolStrip();
 
             currentControl = songManager;
         }

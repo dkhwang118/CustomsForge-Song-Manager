@@ -767,11 +767,11 @@ namespace CustomsForgeSongManager.LocalTools
         }
 
         /// <summary>
-        /// Saves the current song collection (Globals.MasterCollection) to the SongsInfo.xml file.
+        /// Saves the given song collection to the SongsInfo.xml file.
         /// </summary>
-        public static void SaveSongCollectionToFile()
+        public static void SaveSongCollectionToFile(List<SongData> songInfoToSave)
         {
-            var dom = Globals.MasterCollection.XmlSerializeToDom();
+            var dom = songInfoToSave.XmlSerializeToDom();
             XmlElement versionNode = dom.CreateElement("SongDataList");
             versionNode.SetAttribute("version", SongData.SongDataVersion);
             versionNode.SetAttribute("AppVersion", Constants.CustomVersion());
@@ -812,11 +812,11 @@ namespace CustomsForgeSongManager.LocalTools
         {
             try
             {
-                using (var fs = new FileStream(Constants.AppSettingsPath, FileMode.Create, FileAccess.Write, FileShare.Write))
+                using (var fs = new FileStream(DirectoryManager.AppSettingsPath, FileMode.Create, FileAccess.Write, FileShare.Write))
                 {
                     AppSettings.Instance.SerializeXml(fs);
                     if (verbose)
-                        SMLog.Log("Saved File: " + Path.GetFileName(Constants.AppSettingsPath));
+                        SMLog.Log("Saved File: " + Path.GetFileName(DirectoryManager.AppSettingsPath));
                 }
             }
             catch (Exception ex)
@@ -876,6 +876,97 @@ namespace CustomsForgeSongManager.LocalTools
             {
                 SMLog.Log(String.Format("<Error> SaveDataGridViewSettingsToFile: {0}", ex.Message));
             }
+        }
+
+
+        public static void DeleteApplicationSettingsFiles()
+        {
+            // DO NOT use the bulldozer here
+            // 'My Documents/CFSM' may contain some original files
+            ZipUtilities.RemoveReadOnlyAttribute(DirectoryManager.WorkFolder);
+            GenExtensions.DeleteFile(DirectoryManager.SongsInfoPath);
+            GenExtensions.DeleteFile(DirectoryManager.AppSettingsPath);
+            GenExtensions.DeleteDirectory(DirectoryManager.GridSettingsFolder);
+            GenExtensions.DeleteDirectory(DirectoryManager.TaggerWorkingFolder);
+        }
+
+
+        /// <summary>
+        /// Tries to load the song info from the file.
+        /// Will return false if the file does not exist or if the SongDataVersion is incorrect.
+        /// </summary>
+        /// <param name="songInfo">The song info loaded from the file.</param>
+        /// <returns>True if the song info was successfully loaded.</returns>
+        public static bool TryLoadSongInfoFromFile(out List<SongData> songInfo)
+        {
+            songInfo = null;
+            // load songsInfo.xml if it exists 
+            if (File.Exists(DirectoryManager.SongsInfoPath))
+            {
+                XmlDocument dom = new XmlDocument();
+                dom.Load(DirectoryManager.SongsInfoPath);
+                SMLog.Log("Loaded File: " + Path.GetFileName(DirectoryManager.SongsInfoPath));
+
+                // remove version info node
+                var listNode = dom["ArrayOfSongData"];
+                if (listNode != null)
+                {
+                    var versionNode = listNode["SongDataList"];
+                    if (versionNode != null)
+                    {
+                        if (versionNode.HasAttribute("version"))
+                        {
+                            // If this collection has old version info
+                            if (versionNode.GetAttribute("version") != SongData.SongDataVersion)
+                            {
+                                // Log it and return false to get songs with the new version
+                                SMLog.Log("<WARNING> Incorrect song collection version found ...");
+                                return false;
+                            }
+                        }
+
+                        listNode.RemoveChild(versionNode);
+                    }
+
+                    songInfo = SerialExtensions.XmlDeserialize<List<SongData>>(listNode.OuterXml);
+
+                    if (songInfo == null || songInfo.Count == 0)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public static bool TryLoadDataGridViewSettingsFromFile(DataGridView dgv, out RADataGridViewSettings settings)
+        {
+            settings = null;
+            string settingsPath = DirectoryManager.GetGridSettingsPathForGridName(dgv.Name);
+            // If a file exists at the given path
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    // load the settings from the file
+                    settings = SerialExtensions.LoadFromFile<RADataGridViewSettings>(settingsPath);
+                    SMLog.Log("Loaded File: " + Path.GetFileName(settingsPath));
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    SMLog.Log("<ERROR> GridSettings could not be loaded ...");
+                    SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
+                    SMLog.Log(ex.Message);
+                    return false;
+                }
+            }
+
+            return false;
         }
     }
 }
