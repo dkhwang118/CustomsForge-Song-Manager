@@ -804,11 +804,15 @@ namespace CustomsForgeSongManager.LocalTools
                 }
             }
 
-            dom.Save(Constants.SongsInfoPath);
-            SMLog.Log("Saved File: " + Path.GetFileName(Constants.SongsInfoPath));
+            dom.Save(DirectoryManager.SongsInfoPath);
+            SMLog.Log("Saved File: " + Path.GetFileName(DirectoryManager.SongsInfoPath));
         }
 
-        public static void SaveApplicationSettingsToFile(bool verbose = false)
+        /// <summary>
+        /// Saves the application settings to the settings file.
+        /// </summary>
+        /// <param name="verbose"></param>
+        public static void SaveApplicationSettingsToFile(AppSettings settingsToSave = null, bool verbose = false)
         {
             try
             {
@@ -876,6 +880,14 @@ namespace CustomsForgeSongManager.LocalTools
             {
                 SMLog.Log(String.Format("<Error> SaveDataGridViewSettingsToFile: {0}", ex.Message));
             }
+        }
+
+
+        public static void SaveDataGridViewSettingsToFile(DataGridView dgvToSave)
+        {   
+            // Get the settings
+            RADataGridViewSettings settings = RAExtensions.SaveColumnOrder(dgvToSave);
+            SaveDataGridViewSettingsToFile(settings, dgvToSave);
         }
 
 

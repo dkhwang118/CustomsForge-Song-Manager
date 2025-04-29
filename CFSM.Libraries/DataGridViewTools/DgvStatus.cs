@@ -31,6 +31,15 @@ namespace DataGridViewTools
         }
 
         /// <summary>
+        /// Checks if this DgvStatus has a sorting order saved by calling SaveSorting.
+        /// </summary>
+        /// <returns>True if a sorting order has been saved.</returns>
+        public bool HasSorting()
+        {
+            return _oldSortCol != null;
+        }
+
+        /// <summary>
         /// Restores column sorting and sort glpyh to a DataGridView.
         ///<para>Call this AFTER calling SaveSorting on the same DataGridView.</para>   
         /// </summary>

@@ -26,6 +26,7 @@ using System.Configuration;
 using System.Globalization;
 using DLogNet;
 using CustomsForgeSongManager.DataManager;
+using CustomsForgeSongManager.AppEvents;
 
 // NOTE: the app is designed for default user screen resolution of 1024x768
 // dev screen resolution should be set to this when designing forms and controls
@@ -41,8 +42,21 @@ namespace CustomsForgeSongManager.Forms
 {
     public partial class frmMain : Form, IMainForm //,ThemedForm
     {
+        /// <summary>
+        /// Location of the user control (UC) that will be displayed in the tab pages.
+        /// </summary>
         private static Point UCLocation = new Point(5, 10);
+
+        /// <summary>
+        /// Size of the user control (UC) that will be displayed in the tab pages.
+        /// </summary>
         private static Size UCSize = new Size(990, 490);
+
+        /// <summary>
+        /// Dock style of the user control (UC) that will be displayed in the tab pages.
+        /// </summary>
+        private static DockStyle UCDockStyle = DockStyle.Fill;
+
         private Control currentControl = null;
         public delegate void PlayCall();
         private event PlayCall playFunction;
@@ -74,6 +88,8 @@ namespace CustomsForgeSongManager.Forms
         private const string APP_ARCHIVE = "CFSMSetup.rar";
 #endif
 
+        #region Constructor
+
         public frmMain()
         {
             // Initialize the form and its components
@@ -83,13 +99,9 @@ namespace CustomsForgeSongManager.Forms
             SMLog.SetMainLogTextBox(tbLog);
 
             // First - Try to load the application settings
-            // If we can't load the app settings from the file, we will create a new one
-            if (!SettingsManager.TryLoadApplicationSettingsFromFile(DirectoryManager.AppSettingsPath))
-            {
-                // TODO: Ask the user to select its location or prompt to create a new one
-                // For now, we will create a new one with default values
-                SettingsManager.SetApplicationSettings(AppSettings.StartSingletonInstance());
-            }
+            SettingsManager.Initialize();
+            multithreadCheck();
+
 
             // Set the form's title
             setApplicationTitle();
@@ -169,6 +181,9 @@ namespace CustomsForgeSongManager.Forms
                 SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
                 SMLog.Logger.Dispose();
 
+                // Dispose of the EventConsumer resources
+                AppEventManager.ShutDown();
+
                 // Dispose of the notifyIcon stuff
                 // NOTE: this code was retrieved from the DLogNet readme
                 notifyIcon_Main.Visible = false;
@@ -194,14 +209,6 @@ namespace CustomsForgeSongManager.Forms
 
 
 
-
-
-            // Log app runtime environment
-
-
-
-
-
             // This was a great idea while RSTK lib was still regularly updated, but now has become a timebomb which breaks expired build, just as current & working builds 
             /*if (!ToolkitVersion.IsRSTKLibValid())
             {
@@ -217,8 +224,6 @@ namespace CustomsForgeSongManager.Forms
 
 
 
-
-
             // If the display settings aren't set correctly
             if (!ValidationTool.ValidateDisplaySettings(this, this)) // , true, true)) // uncomment for debugging
             {
@@ -227,24 +232,29 @@ namespace CustomsForgeSongManager.Forms
                 SMLog.Log("+ Adjusted AutoScaleDimensions, AutoScaleMode, and AutoSize ...");
             }
 
-            // Try to load our Song Master Collection from file
-            bool loadSuccess = SongDataManager.TryLoadSongInfoFromFile(out List<SongData> songInfo);
+            //============================================================
+            //     Logic for the first page to be shown
+            //====================================================
 
-
-            // If this is the first run OR we didn't load our song info successfully
-            if (AppSettings.Instance.FirstRun || !loadSuccess)
+            // If this is the first run of the app
+            if (AppSettings.Instance.FirstRun)
             {
-                // Set the first page shown to be the Settings tab
-                tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSettings);
-
                 // Load the Settings tab
                 loadSettingsTabPage();
+
+                // Set the first page shown to be the Settings tab
+                tcMain.SelectedIndex = getIndexForTabPage(tpSettings);
+
+                
             }
-            else
+            else // If this is not the first run of the app
             {
+                // Initialize the SongDataManager
+                SongDataManager.Initialize();
+
                 // Set the first page shown to be the Song Manager tab
                 loadSongManagerTabPage();
-                tcMain.SelectedIndex = tcMain.TabPages.IndexOf(tpSongManager);
+                tcMain.SelectedIndex = getIndexForTabPage(tpSongManager);
             }
 
             // bring CFSM to the front on startup
@@ -254,31 +264,9 @@ namespace CustomsForgeSongManager.Forms
 
         }
 
-        /// <summary>
-        /// Event handler for when the an AppSettings property changes value. 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void appSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            switch (e.PropertyName)
-            {
-                case "ShowLogWindow":
-                    scMain.Panel2Collapsed = !AppSettings.Instance.ShowLogWindow;
-                    tsLabel_ShowHideLog.Text = scMain.Panel2Collapsed ? 
-                        Properties.Resources.ShowLog : Properties.Resources.HideLog;
-                    break;
-                case "EnableNotifications":
-                    if (AppSettings.Instance.EnableNotifications)
-                        SMLog.Logger.AddTargetNotifyIcon(notifyIcon_Main);
-                    else
-                        SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
-                    break;
-                default:
-                    break;
-            }
+        #endregion Constructor
 
-        }
+        #region Initialization Methods
 
         /// <summary>
         /// Set the application title based on the version information.
@@ -335,31 +323,194 @@ namespace CustomsForgeSongManager.Forms
             SMLog.Log(String.Format("+ Dynamic Difficulty Creator (v{0})", FileVersionInfo.GetVersionInfo(Path.Combine(ExternalApps.TOOLKIT_ROOT, ExternalApps.APP_DDC)).ProductVersion));
             SMLog.Log(String.Format("+ System Display DPI Setting ({0})", GeneralExtension.GetDisplayDpi(this)));
             SMLog.Log(String.Format("+ System Display Screen Scale Factor ({0}%)", GeneralExtension.GetDisplayScalingFactor(this) * 100));
-            
+
             // SMLog.Log(String.Format("+ App.config Status ({0})", appConfigStatus));
+
+        } 
+
+        /// <summary>
+        /// Gets the index of the given tab page in the tcMain.TabPages control.
+        /// </summary>
+        /// <param name="tp"></param>
+        /// <returns>The index of the given tab page</returns>
+        private int getIndexForTabPage(TabPage tp)
+        {
+            return tcMain.TabPages.IndexOf(tp);
+        }
+
+        /// <summary>
+        /// Event handler for when the an AppSettings property changes value. 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void appSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case "ShowLogWindow":
+                    scMain.Panel2Collapsed = !AppSettings.Instance.ShowLogWindow;
+                    tsLabel_ShowHideLog.Text = scMain.Panel2Collapsed ? 
+                        Properties.Resources.ShowLog : Properties.Resources.HideLog;
+                    break;
+                case "EnableNotifications":
+                    if (AppSettings.Instance.EnableNotifications)
+                        SMLog.Logger.AddTargetNotifyIcon(notifyIcon_Main);
+                    else
+                        SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
+                    break;
+                default:
+                    break;
+            }
 
         }
 
         /// <summary>
-        /// Reset the ToolStrip values.
-        /// The ToolStrip holds the progress bar, main message,
-        /// status message, cancel label, and the disabled counter label.
+        /// 
         /// </summary>
-        public void ResetBottomToolStrip()
+        private void multithreadCheck()
         {
-            try
+            // Get this system's core count
+            var coreCount = SysExtensions.GetCoreCount();
+            if (coreCount == 0)
             {
-                tsProgressBar_Main.Value = 0;
-                tsLabel_MainMsg.Visible = false;
-                tsLabel_StatusMsg.Visible = false;
-                tsLabel_Cancel.Visible = false;
-                tsLabel_Cancel.Text = "Cancel";
-                tsLabel_DisabledCounter.Visible = false;
+                coreCount = 1;
             }
-            catch {/* DO NOTHING */}
+
+            // If the system has more than 1 core
+            if (coreCount > 1)
+            {
+                SettingsManager.Settings.MultiThread = 1;
+            }
+            else
+            {
+                SettingsManager.Settings.MultiThread = 0;
+            }
+        }
+
+        #endregion Initialization Methods
+
+
+        #region Tab Index Selection Changed Handler
+
+        /// <summary>
+        /// Event handler for when the tab selection changes in the main tab control.
+        /// This is what kick's off a change between the tabs 
+        /// (i.e. arguably the biggest change the application's view can make).
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public void tcMain_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var debugMe = sender;
+
+            // reset toolstrip globals
+            //Globals.ResetToolStripGlobals();
+            ResetBottomToolStrip();
+
+            // quick fix ... visible on when Song Manager is active
+            // avoids playback issues when other tabs are active 
+            if (tcMain.SelectedIndex != 0)
+            {
+                Globals.AudioEngine.Stop();
+                tsAudioPlayer.Visible = false;
+            }
+            else
+                tsAudioPlayer.Visible = true;
+
+            // If we have a current tab control, call TabLeave() on it.
+            if (currentControl != null && currentControl is INotifyTabChanged)
+                (currentControl as INotifyTabChanged).TabLeave();
+
+            switch (tcMain.SelectedTab.Text)
+            {
+                // passing variables(objects) by value to UControl
+                // processing order is important to prevent flashing/jumping display
+                case "Song Manager":
+                    loadSongManagerTabPage();
+                    break;
+                case "Arrangement Analyzer":
+                    // don't reload grid if already loaded
+                    // if the 
+                    if (!tpArrangements.Controls.Contains(Globals.ArrangementAnalyzer))
+                    {
+                        this.tpArrangements.Controls.Clear();
+                        this.tpArrangements.Controls.Add(Globals.ArrangementAnalyzer);
+                        Globals.ArrangementAnalyzer.Dock = DockStyle.Fill;
+                        Globals.ArrangementAnalyzer.Location = UCLocation;
+                        Globals.ArrangementAnalyzer.Size = UCSize;
+                    }
+
+                    Globals.ArrangementAnalyzer.UpdateToolStrip();
+                    currentControl = Globals.ArrangementAnalyzer;
+                    break;
+                case "Duplicates":
+                    // force Duplicates check of Custom Inlays
+                    Globals.IncludeInlays = true;
+                    // force full rescan on load
+                    Globals.RescanDuplicates = true;
+
+                    this.tpDuplicates.Controls.Clear();
+                    this.tpDuplicates.Controls.Add(Globals.Duplicates);
+                    Globals.Duplicates.Dock = DockStyle.Fill;
+                    Globals.Duplicates.Location = UCLocation;
+                    Globals.Duplicates.Size = UCSize;
+                    Globals.Duplicates.UpdateToolStrip();
+                    currentControl = Globals.Duplicates;
+                    break;
+                case "Renamer":
+                    this.tpRenamer.Controls.Clear();
+                    this.tpRenamer.Controls.Add(Globals.Renamer);
+                    Globals.Renamer.Dock = DockStyle.Fill;
+                    Globals.Renamer.Location = UCLocation;
+                    Globals.Renamer.Size = UCSize;
+                    Globals.Renamer.UpdateToolStrip();
+                    currentControl = Globals.Renamer;
+                    break;
+                case "Setlist Manager":
+                    this.tpSetlistManager.Controls.Clear();
+                    this.tpSetlistManager.Controls.Add(Globals.SetlistManager);
+                    Globals.SetlistManager.Dock = DockStyle.Fill;
+                    Globals.SetlistManager.Location = UCLocation;
+                    Globals.SetlistManager.Size = UCSize;
+                    Globals.SetlistManager.UpdateToolStrip();
+                    currentControl = Globals.SetlistManager;
+                    break;
+                case "Profile Song Lists":
+                    this.tpProfileSongLists.Controls.Clear();
+                    this.tpProfileSongLists.Controls.Add(Globals.ProfileSongLists);
+                    Globals.ProfileSongLists.Dock = DockStyle.Fill;
+                    Globals.ProfileSongLists.Location = UCLocation;
+                    Globals.ProfileSongLists.Size = UCSize;
+                    Globals.ProfileSongLists.UpdateToolStrip();
+                    currentControl = Globals.ProfileSongLists;
+                    break;
+                case "Song Packs":
+                    this.tpSongPacks.Controls.Clear();
+                    this.tpSongPacks.Controls.Add(Globals.SongPacks);
+                    Globals.SongPacks.Dock = DockStyle.Fill;
+                    Globals.SongPacks.Location = UCLocation;
+                    Globals.SongPacks.Size = UCSize;
+                    Globals.SongPacks.UpdateToolStrip();
+                    currentControl = Globals.SongPacks;
+                    break;
+                case "Settings":
+                    loadSettingsTabPage();
+                    break;
+                case "About":
+                    tpAbout.Controls.Clear();
+                    tpAbout.Controls.Add(Globals.About);
+                    Globals.About.Location = UCLocation;
+                    Globals.About.Size = UCSize;
+                    currentControl = Globals.About;
+                    break;
+            }
+
+            if (currentControl != null && currentControl is INotifyTabChanged)
+                (currentControl as INotifyTabChanged).TabEnter();
         }
 
 
+        #region Tab Index Selection Changed helper methods
 
         /// <summary>
         /// Method to load and/or display the Song Manager tab.
@@ -392,24 +543,7 @@ namespace CustomsForgeSongManager.Forms
                 songManager = _tabPageViews[typeof(SongManager)] as SongManager;
             }
 
-            /*
-            if (!tpSongManager.Controls.Contains(Globals.SongManager))
-            {
-                this.tpSongManager.Controls.Clear();
-                this.tpSongManager.Controls.Add(Globals.SongManager);
-
-                Globals.SongManager.PlaySongFunction = playFunction;
-                Globals.SongManager.Dock = DockStyle.Fill;
-                Globals.SongManager.Location = UCLocation;
-                Globals.SongManager.Size = UCSize;
-            }
-            */
-
-            // Call UpdateToolStrip on the Song Manager
-            // NOTE: This is currently a mess of an update that seems to do a lot
-            // ==> eventually need to refactor this to only update what's necessary
-            //songManager.UpdateToolStrip();
-
+            // Set it as the current control
             currentControl = songManager;
         }
 
@@ -424,10 +558,7 @@ namespace CustomsForgeSongManager.Forms
             if (!_tabPageViews.ContainsKey(typeof(Settings)))
             {
                 // Initialize the Settings tab panel (the view that appears when clicking on the Settings tab).
-                settings = new Settings(this, UCLocation, UCSize, DockStyle.Fill);
-
-                // Add it to Globals... for now
-                //Globals.Settings = settings;
+                settings = new Settings(UCLocation, UCSize, DockStyle.Fill);
 
                 // Add it to the tab page that holds it
                 tpSettings.Controls.Add(settings);
@@ -440,7 +571,47 @@ namespace CustomsForgeSongManager.Forms
                 // If the Song Manager is already loaded, we just need to get it.
                 settings = _tabPageViews[typeof(Settings)] as Settings;
             }
+
+            // Set it as the current control
+            currentControl = settings;
         }
+
+        /// <summary>
+        /// Method to get the user control settings set by the parameters in frmMain.
+        /// </summary>
+        /// <returns></returns>
+        public Tuple<Point, Size, DockStyle> GetUserControlSettings()
+        {
+            return new Tuple<Point, Size, DockStyle>(UCLocation, UCSize, DockStyle.Fill);
+        }
+
+        #endregion
+
+
+        #endregion Tab Index Selection Changed Handler
+
+
+        /// <summary>
+        /// Reset the ToolStrip values.
+        /// The ToolStrip holds the progress bar, main message,
+        /// status message, cancel label, and the disabled counter label.
+        /// </summary>
+        public void ResetBottomToolStrip()
+        {
+            try
+            {
+                tsProgressBar_Main.Value = 0;
+                tsLabel_MainMsg.Visible = false;
+                tsLabel_StatusMsg.Visible = false;
+                tsLabel_Cancel.Visible = false;
+                tsLabel_Cancel.Text = "Cancel";
+                tsLabel_DisabledCounter.Visible = false;
+            }
+            catch {/* DO NOTHING */}
+        }
+
+
+
 
         private void ShowHelp()
         {
@@ -554,129 +725,7 @@ namespace CustomsForgeSongManager.Forms
             }
         }
         
-        /// <summary>
-        /// Event handler for when the tab selection changes in the main tab control.
-        /// This is what kick's off a change between the tabs 
-        /// (i.e. arguably the biggest change the application's view can make).
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        public void tcMain_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            var debugMe = sender;
-
-            // reset toolstrip globals
-            //Globals.ResetToolStripGlobals();
-            ResetBottomToolStrip();
-
-            // quick fix ... visible on when Song Manager is active
-            // avoids playback issues when other tabs are active 
-            if (tcMain.SelectedIndex != 0)
-            {
-                Globals.AudioEngine.Stop();
-                tsAudioPlayer.Visible = false;
-            }
-            else
-                tsAudioPlayer.Visible = true;
-
-            // If we have a current tab control, call TabLeave() on it.
-            if (currentControl != null && currentControl is INotifyTabChanged)
-                (currentControl as INotifyTabChanged).TabLeave();
-
-            switch (tcMain.SelectedTab.Text)
-            {
-                // passing variables(objects) by value to UControl
-                // processing order is important to prevent flashing/jumping display
-                case "Song Manager":
-                    loadSongManagerTabPage();
-                    break;
-                case "Arrangement Analyzer":
-                    // don't reload grid if already loaded
-                    // if the 
-                    if (!tpArrangements.Controls.Contains(Globals.ArrangementAnalyzer))
-                    {
-                        this.tpArrangements.Controls.Clear();
-                        this.tpArrangements.Controls.Add(Globals.ArrangementAnalyzer);
-                        Globals.ArrangementAnalyzer.Dock = DockStyle.Fill;
-                        Globals.ArrangementAnalyzer.Location = UCLocation;
-                        Globals.ArrangementAnalyzer.Size = UCSize;
-                    }
-
-                    Globals.ArrangementAnalyzer.UpdateToolStrip();
-                    currentControl = Globals.ArrangementAnalyzer;
-                    break;
-                case "Duplicates":
-                    // force Duplicates check of Custom Inlays
-                    Globals.IncludeInlays = true;
-                    // force full rescan on load
-                    Globals.RescanDuplicates = true;
-
-                    this.tpDuplicates.Controls.Clear();
-                    this.tpDuplicates.Controls.Add(Globals.Duplicates);
-                    Globals.Duplicates.Dock = DockStyle.Fill;
-                    Globals.Duplicates.Location = UCLocation;
-                    Globals.Duplicates.Size = UCSize;
-                    Globals.Duplicates.UpdateToolStrip();
-                    currentControl = Globals.Duplicates;
-                    break;
-                case "Renamer":
-                    this.tpRenamer.Controls.Clear();
-                    this.tpRenamer.Controls.Add(Globals.Renamer);
-                    Globals.Renamer.Dock = DockStyle.Fill;
-                    Globals.Renamer.Location = UCLocation;
-                    Globals.Renamer.Size = UCSize;
-                    Globals.Renamer.UpdateToolStrip();
-                    currentControl = Globals.Renamer;
-                    break;
-                case "Setlist Manager":
-                    this.tpSetlistManager.Controls.Clear();
-                    this.tpSetlistManager.Controls.Add(Globals.SetlistManager);
-                    Globals.SetlistManager.Dock = DockStyle.Fill;
-                    Globals.SetlistManager.Location = UCLocation;
-                    Globals.SetlistManager.Size = UCSize;
-                    Globals.SetlistManager.UpdateToolStrip();
-                    currentControl = Globals.SetlistManager;
-                    break;
-                case "Profile Song Lists":
-                    this.tpProfileSongLists.Controls.Clear();
-                    this.tpProfileSongLists.Controls.Add(Globals.ProfileSongLists);
-                    Globals.ProfileSongLists.Dock = DockStyle.Fill;
-                    Globals.ProfileSongLists.Location = UCLocation;
-                    Globals.ProfileSongLists.Size = UCSize;
-                    Globals.ProfileSongLists.UpdateToolStrip();
-                    currentControl = Globals.ProfileSongLists;
-                    break;
-                case "Song Packs":
-                    this.tpSongPacks.Controls.Clear();
-                    this.tpSongPacks.Controls.Add(Globals.SongPacks);
-                    Globals.SongPacks.Dock = DockStyle.Fill;
-                    Globals.SongPacks.Location = UCLocation;
-                    Globals.SongPacks.Size = UCSize;
-                    Globals.SongPacks.UpdateToolStrip();
-                    currentControl = Globals.SongPacks;
-                    break;
-                case "Settings":
-                    loadSettingsTabPage();
-                    tpSettings.Controls.Clear();
-                    tpSettings.Controls.Add(Globals.Settings);
-                    Globals.Settings.Dock = DockStyle.Fill;
-                    Globals.Settings.Location = UCLocation;
-                    Globals.Settings.Size = UCSize;
-                    Globals.Settings.PopulateSettings(Globals.DgvCurrent);
-                    currentControl = Globals.Settings;
-                    break;
-                case "About":
-                    tpAbout.Controls.Clear();
-                    tpAbout.Controls.Add(Globals.About);
-                    Globals.About.Location = UCLocation;
-                    Globals.About.Size = UCSize;
-                    currentControl = Globals.About;
-                    break;
-            }
-
-            if (currentControl != null && currentControl is INotifyTabChanged)
-                (currentControl as INotifyTabChanged).TabEnter();
-        }
+      
 
         private void tsBtnUserProfiles_MouseUp(object sender, MouseEventArgs e)
         {
@@ -1305,6 +1354,8 @@ namespace CustomsForgeSongManager.Forms
                 tsProgressBar_Main.Value = value;
             });
         }
+
+
     }
 }
 

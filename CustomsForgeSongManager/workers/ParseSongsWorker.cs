@@ -214,7 +214,7 @@ namespace CustomsForgeSongManager.Workers
             }
 
             // Set the scanning flag
-            Globals.IsScanning = false;
+            //Globals.IsScanning = false;
 
 
             // Create the finalized list
@@ -260,7 +260,7 @@ namespace CustomsForgeSongManager.Workers
             SongData = parsedSongs;
 
             // Bind the parsed songs to the global master list
-            Globals.MasterCollection = new BindingList<SongData>(parsedSongs);
+            //Globals.MasterCollection = new BindingList<SongData>(parsedSongs);
 
             // -- CRITCAL -- this populates Arrangement DLCKey info in Arrangements2D
             //Globals.MasterCollection.ToList().ForEach(a => a.Arrangements2D.ToList().ForEach(arr => arr.Parent = a));

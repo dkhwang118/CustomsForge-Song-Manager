@@ -233,7 +233,7 @@ namespace CustomsForgeSongManager.LocalTools
                         else
                         {
                             // Check if the selected path contains the required 'dlc' subdirectory
-                            if (!Directory.Exists(Path.Combine(installDir, "dlc")))
+                            if (!Directory.Exists(Path.Combine(fbd.SelectedPath, "dlc")))
                             {
                                 // Show a message for the user to select a valid directory
                                 MessageBox.Show(new Form { TopMost = true },

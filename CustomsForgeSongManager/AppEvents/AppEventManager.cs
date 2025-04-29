@@ -26,24 +26,28 @@ namespace CustomsForgeSongManager.AppEvents
         /// <param name="consumer">The event consumer to add.</param>
         public static void RegisterEventConsumer(IEventConsumer consumer, Type eventType)
         {
-            lock (_lock)
+            _lock.EnterWriteLock();
+
+            // If we don't have a list started for this event type yet, create one
+            if (!_eventConsumersByEvent.ContainsKey(eventType))
             {
-                // If we don't have a list started for this event type yet, create one
-                if (!_eventConsumersByEvent.ContainsKey(eventType))
-                {
-                    _eventConsumersByEvent[eventType] = new List<EventConsumerTunnel>();
-                }
-
-                // Create the EventConsumerTunnel object
-                EventConsumerTunnel consumerTunnel = new EventConsumerTunnel(consumer);
-
-                // Add the consumer tunnel to the list of consumers for this event type
-                _eventConsumersByEvent[eventType].Add(consumerTunnel);
+                _eventConsumersByEvent[eventType] = new List<EventConsumerTunnel>();
             }
+
+            // Create the EventConsumerTunnel object
+            EventConsumerTunnel consumerTunnel = new EventConsumerTunnel(consumer);
+
+            // Add the consumer tunnel to the list of consumers for this event type
+            _eventConsumersByEvent[eventType].Add(consumerTunnel);
+
+            _lock.ExitWriteLock();
+            
         }
 
         public static void RaiseEvent(AppEvent appEvent)
         {
+            _lock.EnterReadLock();
+
             // Check if the event type is registered
             if (_eventConsumersByEvent.ContainsKey(appEvent.GetType()))
             {
@@ -53,6 +57,27 @@ namespace CustomsForgeSongManager.AppEvents
                     consumer.EnqueueEvent(appEvent);
                 }
             }
+
+            _lock.ExitReadLock();
+        }
+
+        /// <summary>
+        /// Disposes of all EventConsumer resources used by the application.
+        /// </summary>
+        public static void ShutDown()
+        {
+            // Get all the EventConsumerTunnels and dispose of them
+            _lock.EnterWriteLock();
+
+            foreach (List<EventConsumerTunnel> consumerList in _eventConsumersByEvent.Values)
+            {
+                foreach (EventConsumerTunnel consumerTunnel in consumerList)
+                {
+                    consumerTunnel.Dispose();
+                }
+            }
+
+            _lock.ExitWriteLock();
         }
     }
 }

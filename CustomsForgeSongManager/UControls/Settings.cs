@@ -15,6 +15,7 @@ using System.Threading;
 using System.Collections.Generic;
 using CustomsForgeSongManager.Forms;
 using DLogNet;
+using CustomsForgeSongManager.DataManager;
 
 namespace CustomsForgeSongManager.UControls
 {    /// <summary>
@@ -27,20 +28,79 @@ namespace CustomsForgeSongManager.UControls
         private bool isDirty = false;
         private List<ColumnOrderItem> columnOrderList;
 
-        private frmMain _parentControl;
+        private RADataGridView _dgvCurrent = null;
 
-        public Settings(frmMain parentControl, Point controlLocation, Size controlSize, DockStyle dockStyle)
+        #region Constructor
+
+        public Settings(Point controlLocation, Size controlSize, DockStyle dockStyle)
         {
             InitializeComponent();
             // save AppSettings.Instance
             Leave += Settings_Leave;
 
             // set control properties
-            _parentControl = parentControl;
             this.Location = controlLocation;
             this.Size = controlSize;
             this.Dock = dockStyle;
+
+            // Populate the view
+            populateView();
         }
+
+        #endregion Constructor
+
+        #region INotifyTabChanged Implementation
+
+        /// <summary>
+        /// Called when the tab is selected.
+        /// </summary>
+        public void TabEnter()
+        {
+            cueDgvSettingsPath.Text = String.Empty;
+            btnSettingsSave.Text = "Save Settings  ";
+
+            // Populate the view
+            populateView();
+        }
+
+        public void TabLeave()
+        {
+            // Handle saving the application settings
+            // Validate the RS2014 installation directory
+            //ValidateRsDir();
+            ValidationTool.ValidateRocksmithInstallDirectory(cueRsDir.Text);
+
+            // autosave Settings
+            //SaveSettingsToFile(Globals.DgvCurrent);
+            SettingsManager.SaveApplicationSettingsToFile();
+
+            // Handle grid settings
+            if (_dgvCurrent != null)
+            {
+                //if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
+                //    throw new DataException("<ERROR> TabLeave DgvCurrent.Name is null/empty ...");
+
+                // reload modified column settings to the actual dgvCurrent
+                ((RADataGridView)Globals.DgvCurrent).ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
+                SMLog.Log("Reloaded Modified Column Settings: " + Globals.DgvCurrent.Name);
+
+                // save custom grid settings
+                if (!String.IsNullOrEmpty(cueDgvSettingsPath.Text) && cueDgvSettingsPath.Text != Constants.GridSettingsPath)
+                    SerialExtensions.SaveToFile(cueDgvSettingsPath.Text, RAExtensions.SaveColumnOrder(columnOrderList));
+            }
+
+
+            SMLog.Log("Saved CFSM Settings ... ");
+
+            // force the initial load on FirstRun
+            if (AppSettings.Instance.FirstRun)
+            {
+                //Globals.ReloadSongManager = true;
+                AppSettings.Instance.FirstRun = false;
+            }
+        }
+
+        #endregion INotifyTabChanged Implementation
 
         public void LoadSettingsFromFile(DataGridView dgvCurrent = null, bool verbose = false)
         {
@@ -80,6 +140,12 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
+        /// <summary>
+        /// Save the current AppSettings instance to file.
+        /// If a DataGridView is passed in, save the DGV settings to file.
+        /// </summary>
+        /// <param name="dgvCurrent"></param>
+        /// <param name="verbose"></param>
         public void SaveSettingsToFile(DataGridView dgvCurrent, bool verbose = false)
         {
             Globals.DgvCurrent = dgvCurrent;
@@ -452,8 +518,13 @@ namespace CustomsForgeSongManager.UControls
             SMLog.Log("CFSM multi threading usage was reset ...");
         }
 
+        /// <summary>
+        /// Old method to populate the settings page before "TabEnter" is called.
+        /// </summary>
+        /// <param name="dgvCurrent">The DGV loaded for the page PRIOR to tabbing to the settings page.</param>
         public void PopulateSettings(DataGridView dgvCurrent)
         {
+            // If the given DGV is one that has a name 
             if (!String.IsNullOrEmpty(dgvCurrent.Name))
             {
                 SMLog.Log("Populating Settings GUI for " + dgvCurrent.Name + " ...");
@@ -464,6 +535,7 @@ namespace CustomsForgeSongManager.UControls
                 lblDgvColumns.Text = String.Format("Grid settings for {0} from file: {1}", dgvTag, Path.GetFileName(Constants.GridSettingsPath));
             }
 
+            // If the DGV settings for the given DGV are not found, then create a new default settings file
             if (!File.Exists(Constants.GridSettingsPath))
             {
                 if (!Directory.Exists(Constants.GridSettingsFolder))
@@ -475,6 +547,36 @@ namespace CustomsForgeSongManager.UControls
 
             LoadDgvColumns(Constants.GridSettingsPath);
         }
+
+        private void populateView()
+        {
+            // Handle loading the current settings 
+            loadApplicationSettingsIntoView();
+
+            // Get the DGV last loaded by the application
+            RADataGridView dgvCurrent = SettingsManager.GetCurrentDataGridView();
+            if (dgvCurrent != null)
+            {
+                SMLog.Log("Populating Settings GUI for " + dgvCurrent.Name + " ...");
+                
+                // each DataGridView has a tag which holds a friendly name
+                var dgvTag = dgvCurrent.Tag.ToString();
+                lblDgvColumns.Text = String.Format("Grid settings for {0} from file: {1}", dgvTag, Path.GetFileName(Constants.GridSettingsPath));
+
+                RADataGridViewSettings settings = SettingsManager.GetCurrentDataGridViewSettings();
+                loadDgvDataIntoView(dgvCurrent, settings);
+            }
+        }
+
+        /// <summary>
+        /// Load the application settings into their proper places on the Settings view.
+        /// </summary>
+        private void loadApplicationSettingsIntoView()
+        {
+            // Load the install directory into the cueRsDir textbox
+            cueRsDir.Text = DirectoryManager.RSInstalledDir;
+        }
+
 
         public void LoadDgvColumns(string gridSettingsPath)
         {
@@ -516,6 +618,52 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
+
+
+        private void loadDgvDataIntoView(RADataGridView dgv, RADataGridViewSettings settings)
+        {
+            // Put the settings file in the cueDgvsettingsfile path
+            if (dgv != null)
+            {
+                cueDgvSettingsPath.Text = DirectoryManager.GetGridSettingsPathForGridName(dgv.Name);
+            }
+
+            try
+            {
+                // reset the grid data
+                dgvColumns.DataSource = null;
+                dgvColumns.AutoGenerateColumns = false;
+                columnOrderList = settings.ColumnOrder;
+
+                // allows bound grid to be sorted by clicking column headers
+                FilteredBindingList<ColumnOrderItem> fbl = new FilteredBindingList<ColumnOrderItem>(columnOrderList);
+                BindingSource bs = new BindingSource { DataSource = fbl };
+                dgvColumns.DataSource = bs;
+
+                // initial sort is ascending on DisplayIndex
+                dgvColumns.Sort(dgvColumns.Columns["colDisplayIndex"], ListSortDirection.Ascending);
+                dgvColumns.SelectionMode = DataGridViewSelectionMode.CellSelect;
+                colDisplayIndex.ReadOnly = false;
+                colDisplayIndex.ToolTipText = "Click to Sort (Read/Write)\r\nEither manually edit 'DisplayIndex', or\r" +
+                    "\ndrag and drop a 'HeaderText' row\r\nto change grid column display order.\r\n\r\n" +
+                    "NOTE: CFSM makes its best effort to\r\nauto correct any manual entry mistakes.";
+
+                // initialize drag and drop event handlers
+                dgvColumns.AllowDrop = true;
+                dgvColumns.MouseDown += new MouseEventHandler(dgvColumns_MouseDown);
+                dgvColumns.MouseMove += new MouseEventHandler(dgvColumns_MouseMove);
+                dgvColumns.DragOver += new DragEventHandler(dgvColumns_DragOver);
+                dgvColumns.DragDrop += new DragEventHandler(dgvColumns_DragDrop);
+            }
+            catch (Exception ex)
+            {
+                SMLog.Log("<ERROR> GridSettings could not be loaded ...");
+                SMLog.Log("Windows 10 users must uninstall .Net 4.7 and manually install .Net 4.0 if this error persists ...");
+                SMLog.Log(ex.Message);
+                //RAExtensions.ManagerGridSettings = null; // reset
+            }
+        }
+
         private void lnkSelectAll_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             bool deselect = Convert.ToBoolean(dgvColumns.Rows[0].Cells["colVisible"].Value);
@@ -537,37 +685,7 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
-        public void TabLeave()
-        {
-            ValidateRsDir();
-            if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
-                throw new DataException("<ERROR> TabLeave DgvCurrent.Name is null/empty ...");
 
-            // reload modified column settings to the actual dgvCurrent
-            ((RADataGridView)Globals.DgvCurrent).ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
-            SMLog.Log("Reloaded Modified Column Settings: " + Globals.DgvCurrent.Name);
-            // autosave Settings
-            SaveSettingsToFile(Globals.DgvCurrent);
-
-            // save custom grid settings
-            if (!String.IsNullOrEmpty(cueDgvSettingsPath.Text) && cueDgvSettingsPath.Text != Constants.GridSettingsPath)
-                SerialExtensions.SaveToFile(cueDgvSettingsPath.Text, RAExtensions.SaveColumnOrder(columnOrderList));
-
-            SMLog.Log("Saved CFSM Settings ... ");
-
-            // force the initial load on FirstRun
-            if (AppSettings.Instance.FirstRun)
-            {
-                Globals.ReloadSongManager = true;
-                AppSettings.Instance.FirstRun = false;
-            }
-        }
-
-        public void TabEnter()
-        {
-            cueDgvSettingsPath.Text = String.Empty;
-            btnSettingsSave.Text = "Save Settings  ";
-        }
 
         private void cueDgvSettingsPath_MouseClick(object sender, MouseEventArgs e)
         {

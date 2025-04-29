@@ -451,7 +451,16 @@ namespace CustomsForgeSongManager.DataObjects
                 {
                     settings = stream.DeserializeXml<AppSettings>();
                 }
-                return true;
+
+                // If the settings var is null => there is a file, but it doesn't have anything in it
+                if (settings == null)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             }
             return false;
         }

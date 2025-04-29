@@ -251,7 +251,7 @@ namespace CustomsForgeSongManager.DataManager
             // Set it here
             _rsInstalledDir = rsDir;
             // and in the AppSettings
-            AppSettings.Instance.RSInstalledDir = rsDir;
+            SettingsManager.Settings.RSInstalledDir = rsDir;
             // Save the new settings
             FileTools.SaveApplicationSettingsToFile();
         }
