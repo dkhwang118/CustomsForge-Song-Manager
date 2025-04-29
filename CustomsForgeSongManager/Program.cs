@@ -54,22 +54,30 @@ namespace CustomsForgeSongManager
 
         private static void RunApp()
         {
-            // check for correct version of .NET
-            if (!File.Exists(Constants.SongsInfoPath))
-                SysExtensions.IsDotNet4();
 
             //==============================================================
             // Start data managers that don't need to be in the main thread
             //==============================================================
 
-            // Start the logger    
-            SMLog.Log("==== This is the start of a new CFSM run log =====");
 
             // Initialize the Directory Manager so we can start using the paths
             DirectoryManager.InitializeDefaultPaths();
 
+
+            // Start the logger    
+            SMLog.Log("==== This is the start of a new CFSM run log =====");
+
             // Now that we have the directory manager default paths, we can initialize the logger with the log file path
             SMLog.SetLogFilePath(DirectoryManager.LogFilePath);
+
+            // check for correct version of .NET
+            if (!File.Exists(DirectoryManager.SongsInfoPath))
+                SysExtensions.IsDotNet4();
+
+
+
+
+
 
             // This is used to initialize the Utils and CFSM classes.
             // NOTE: was moved from frmMain constructor to here to ensure it runs before the main form is created.
