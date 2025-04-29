@@ -28,6 +28,7 @@ using DLogNet;
 using CustomsForgeSongManager.DataManager;
 using CustomsForgeSongManager.AppEvents;
 using CustomsForgeSongManager.AppEvents.Event;
+using CustomsForgeSongManager.Workers;
 
 // NOTE: the app is designed for default user screen resolution of 1024x768
 // dev screen resolution should be set to this when designing forms and controls
@@ -95,6 +96,9 @@ namespace CustomsForgeSongManager.Forms
         {
             // Initialize the form and its components
             InitializeComponent();
+
+            // Init the ProgressPanel
+            ProgressPanelWorker.InitializeForm();
 
             // Setup the log textbox
             SMLog.SetMainLogTextBox(tbLog);

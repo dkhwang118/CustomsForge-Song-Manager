@@ -49,7 +49,7 @@ namespace CustomsForgeSongManager.Controllers
         /// <summary>
         /// List of active workers spawned by this controller operations.
         /// </summary>
-        private List<ControllableWorker> _activeWorkers = new List<ControllableWorker>();
+        private List<ProgressPanelWorker> _activeWorkers = new List<ProgressPanelWorker>();
 
         /// <summary>
         /// Private constructor to prevent instantiation from outside.

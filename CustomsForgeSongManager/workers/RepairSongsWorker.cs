@@ -33,7 +33,7 @@ namespace CustomsForgeSongManager.Workers
     /// <summary>
     /// Class that handles the logic of repairing songs. 
     /// </summary>
-    public class RepairSongsWorker : ControllableWorker
+    public class RepairSongsWorker : ProgressPanelWorker
     {
         [Obfuscation(Exclude = false, Feature = "-rename")]
         internal enum ErrorType : byte

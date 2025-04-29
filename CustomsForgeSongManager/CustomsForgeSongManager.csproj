@@ -223,6 +223,12 @@
     <Compile Include="Forms\frmCODLCReplacements.Designer.cs">
       <DependentUpon>frmCODLCReplacements.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\frmProgressPanel.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\frmProgressPanel.Designer.cs">
+      <DependentUpon>frmProgressPanel.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\frmMonitoredFolders.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -449,7 +455,7 @@
       <DependentUpon>ThemePreview.cs</DependentUpon>
     </Compile>
     <Compile Include="LocalTools\Worker.cs" />
-    <Compile Include="Workers\ControllableWorker.cs">
+    <Compile Include="Workers\ProgressPanelWorker.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Workers\ParseSongsWorker.cs">
@@ -465,6 +471,9 @@
     <EmbeddedResource Include="Forms\frmCODLCReplacements.resx">
       <DependentUpon>frmCODLCReplacements.cs</DependentUpon>
       <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\frmProgressPanel.resx">
+      <DependentUpon>frmProgressPanel.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\frmMonitoredFolders.resx">
       <DependentUpon>frmMonitoredFolders.cs</DependentUpon>
@@ -581,6 +590,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="UITheme\ThemePreview.resx">
       <DependentUpon>ThemePreview.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Workers\ParseSongsWorker.resx">
+      <DependentUpon>ParseSongsWorker.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

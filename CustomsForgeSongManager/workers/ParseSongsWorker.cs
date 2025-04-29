@@ -27,7 +27,7 @@ namespace CustomsForgeSongManager.Workers
     /// <summary>
     /// Background worker class for parsing songs.
     /// </summary>
-    public class ParseSongsWorker : ControllableWorker
+    public class ParseSongsWorker : ProgressPanelWorker
     {
         /// <summary>
         /// Queue to store Log messages from worker threads for reporting to the UI.
