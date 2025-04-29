@@ -6,7 +6,13 @@ using System.Threading.Tasks;
 
 namespace CustomsForgeSongManager.AppEvents.Event
 {
-    public class StateChangedEvent
+    public class StateChangedEvent : AppEvent
     {
+
+        public StateChangedEvent() { }
+
+
+
+
     }
 }

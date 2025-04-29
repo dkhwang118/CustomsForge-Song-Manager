@@ -195,7 +195,7 @@
   <ItemGroup>
     <Compile Include="AppEvents\AppEventManager.cs" />
     <Compile Include="AppEvents\Event\SettingsChangedEvent.cs" />
-    <Compile Include="AppEvents\Event\SongMasterListChangedEvent.cs" />
+    <Compile Include="AppEvents\Event\SongScanEvent.cs" />
     <Compile Include="AppEvents\IEventConsumer.cs" />
     <Compile Include="Controllers\SongManagerController.cs" />
     <Compile Include="DataManager\DirectoryManager.cs" />

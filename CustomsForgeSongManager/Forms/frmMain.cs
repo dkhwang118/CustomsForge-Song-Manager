@@ -27,6 +27,7 @@ using System.Globalization;
 using DLogNet;
 using CustomsForgeSongManager.DataManager;
 using CustomsForgeSongManager.AppEvents;
+using CustomsForgeSongManager.AppEvents.Event;
 
 // NOTE: the app is designed for default user screen resolution of 1024x768
 // dev screen resolution should be set to this when designing forms and controls
@@ -40,7 +41,7 @@ using CustomsForgeSongManager.AppEvents;
 //
 namespace CustomsForgeSongManager.Forms
 {
-    public partial class frmMain : Form, IMainForm //,ThemedForm
+    public partial class frmMain : Form, IMainForm, IEventConsumer //,ThemedForm
     {
         /// <summary>
         /// Location of the user control (UC) that will be displayed in the tab pages.
@@ -163,6 +164,7 @@ namespace CustomsForgeSongManager.Forms
 
 
             // ?? Disable the tab control if a scan is in progress ??
+            /*
             Globals.OnScanEvent += (s, e) =>
             {
                 GenExtensions.InvokeIfRequired(tcMain, a =>
@@ -170,13 +172,21 @@ namespace CustomsForgeSongManager.Forms
                     tcMain.Enabled = !e.IsScanning;
                 });
             };
+            */
+            // Here's the real fix => handle the SongScanEvent
+            AppEventManager.RegisterEventConsumer(this, typeof(SongScanEvent));
+
+
 
             // Hook the PropertyChanged event handler to the AppSettings instance
-            AppSettings.Instance.PropertyChanged += appSettings_PropertyChanged;
+            //AppSettings.Instance.PropertyChanged += appSettings_PropertyChanged;
 
             // Event handler to handle form closing events
             this.FormClosing += (object sender, FormClosingEventArgs e) =>
             {
+                // Save settings to file
+                SettingsManager.SaveApplicationSettingsToFile();
+
                 // Dispose of the DLogger
                 SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
                 SMLog.Logger.Dispose();
@@ -389,6 +399,42 @@ namespace CustomsForgeSongManager.Forms
 
         #endregion Initialization Methods
 
+        #region Handle AppEvents 
+
+        /// <summary>
+        /// Method that handles events from Event Producers.
+        /// </summary>
+        /// <param name="appEvent"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void HandleEvent(AppEvent appEvent)
+        {
+            // If this is a Song Scan Event (i.e. related to a file scan for a complete list of songs)
+            if (appEvent is SongScanEvent)
+            {
+                // If a scan has been started 
+                if ((appEvent as SongScanEvent).SongScanStarting)
+                {
+                    // Disable the tabcontrol
+                    this.Invoke(delegate
+                    {
+                        tcMain.Enabled = false;
+                    });
+                }
+                // If a scan has been completed 
+                else if ((appEvent as SongScanEvent).SongScanComplete)
+                {
+                    // Enable the tabcontrol
+                    this.Invoke(delegate
+                    {
+                        tcMain.Enabled = true;
+                    });
+                }
+            }
+        }
+
+
+
+        #endregion Handle AppEvents
 
         #region Tab Index Selection Changed Handler
 

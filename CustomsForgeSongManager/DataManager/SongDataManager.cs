@@ -53,6 +53,17 @@ namespace CustomsForgeSongManager.DataManager
         public static bool IsInitialized { get; private set; } = false;
 
         /// <summary>
+        /// An object to provide cross-thread safety when initializing the SongDataManager.
+        /// </summary>
+        private static object _initLock = new object();
+
+        /// <summary>
+        /// Flag to signal whether this class has started initialization.
+        /// Used so the Initialize() method only gets called once.
+        /// </summary>
+        private static bool _hasStartedInitialization = false;
+
+        /// <summary>
         /// Flag to indicate whether the SongDataManager has any SongData loaded.
         /// </summary>
         public static bool HasSongMasterList { get; private set; }
@@ -65,23 +76,35 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         public static void Initialize()
         {
-            // If we can successfully load the songInfo file
-            if (TryLoadSongInfoFromFile(out List<SongData> songInfo))
+            bool canInit = false;
+            lock (_initLock)
             {
-                // Set the song info to the AllSongs list
-                updateSongMasterList(songInfo);
-
-                // Set the initialized flag to true
-                IsInitialized = true;
-
-            }
-            else // If we can't load it from file.
-            {
-                // If we have the rocksmith install directory
-                if (DirectoryManager.RSInstalledDir != null)
+                if (!_hasStartedInitialization)
                 {
-                    // Run a full scan for the songs
-                    RunFullScan();
+                    _hasStartedInitialization = true;
+                    canInit = true;
+                }
+            }
+
+            if (canInit)
+            {
+                // If we can successfully load the songInfo file
+                if (TryLoadSongInfoFromFile(out List<SongData> songInfo))
+                {
+                    // Set the song info to the AllSongs list
+                    updateSongMasterList(songInfo);
+
+                    // Set the initialized flag to true
+                    IsInitialized = true;
+                }
+                else // If we can't load it from file.
+                {
+                    // If we have the rocksmith install directory
+                    if (DirectoryManager.RSInstalledDir != null)
+                    {
+                        // Run a full scan for the songs
+                        RunFullScan();
+                    }
                 }
             }
         }
@@ -127,6 +150,10 @@ namespace CustomsForgeSongManager.DataManager
 
                 // Start it working
                 worker.RunWorkerAsync();
+
+                // Send a notification about the start of a Song Scan
+                SongScanEvent songScanEvent = new SongScanEvent(true);
+                AppEventManager.RaiseEvent(songScanEvent);
             }
 
         }
@@ -220,7 +247,7 @@ namespace CustomsForgeSongManager.DataManager
             _songsMasterList = new List<SongData>(newSongData);
 
             // Notify the consumers that the song list has been updated
-            AppEventManager.RaiseEvent(new SongMasterListChangedEvent(new List<SongData>(newSongData)));
+            AppEventManager.RaiseEvent(new SongScanEvent(false, true, newSongData = new List<SongData>(newSongData)));
         }
 
         /// <summary>

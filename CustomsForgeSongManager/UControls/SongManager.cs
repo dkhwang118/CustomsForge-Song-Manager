@@ -105,7 +105,6 @@ namespace CustomsForgeSongManager.UControls
         /// </summary>
         private frmMain _mainWindow = null;
 
-
         public SongManager(frmMain mainWindow, PlayCall playSongFunc, DockStyle dockStyle,
                             Point controlLocation, Size controlSize)
         {
@@ -175,6 +174,14 @@ namespace CustomsForgeSongManager.UControls
             Globals.TsLabel_StatusMsg.Click += lnkShowAll_Click;
 
 
+            //========================================
+            //         DataGridView init
+            //========================================
+
+            // Initialize our DataGridView
+            initializeDgvBindings();
+
+
             // When the song master collection changes, refresh the datagridview
             /*
             Globals.MasterCollection.ListChanged += (s, e) => 
@@ -189,7 +196,7 @@ namespace CustomsForgeSongManager.UControls
             //============================
 
             // Register as a consumer of SongMasterListChanged events
-            AppEventManager.RegisterEventConsumer(this, typeof(SongMasterListChangedEvent));
+            AppEventManager.RegisterEventConsumer(this, typeof(SongScanEvent));
 
 
 
@@ -309,19 +316,24 @@ namespace CustomsForgeSongManager.UControls
         /// <exception cref="NotImplementedException"></exception>
         public void HandleEvent(AppEvent appEvent)
         {
-            // If this is a song master list changed
-            if (appEvent is SongMasterListChangedEvent)
+            // If this is a Song Scan Event (i.e. related to a file scan for a complete list of songs)
+            if (appEvent is SongScanEvent)
             {
-                // Refresh the song master list
-                _mainWindow.Invoke(delegate
+                // If a scan has been completed 
+                if ((appEvent as SongScanEvent).SongScanComplete)
                 {
-                    // Populate the DGV with the new song info
-                    applyNewSongInfo(((SongMasterListChangedEvent)appEvent).SongData);
+                    // Refresh the song master list
+                    this.Invoke(delegate
+                    {
+                        // Populate the DGV with the new song info
+                        applySongDataToView(((SongScanEvent)appEvent).SongData);
 
-                    // Toggle the UI Controls back on
-                    ToggleUIControls(true);         
+                        // Toggle the UI Controls back on
+                        ToggleUIControls(true);
 
-                });
+                    });
+                }
+
             }
         }
 
@@ -342,40 +354,42 @@ namespace CustomsForgeSongManager.UControls
             // Apply the current application settings to the view.
             applyApplicationSettingsToView();
 
-            // Setup the DGV with song info
-            // If we don't have a local list yet
-            // => we haven't loaded the song info from the SongDataManager yet
-            if (_localSongList == null)
+            // If we do not have our filteredBindingList created
+            if (_filteredBindingList == null)
             {
-                // Try to get the song info from the SongDataManager
-                // If the SongDataManager is initialized
-                if (SongDataManager.IsInitialized)
-                {
-                    // Get the song info from the SongDataManager
-                    List<SongData> masterList = SongDataManager.GetSongMasterList();
+                // Then we haven't initialized the datasource to dgvSongsMaster
 
-                    // Apply its data to the DataGridView
-                    applySongInfoToDataGridView(masterList);
-
-                    // Update the view with any song info we have
-                    applyLocalSongInfoToToolStripView();
-                }
-                else // If it's not initialized
+                // Try to get the song info from the SongDataManager if we can
+                // If the SongDataManager is not initialized
+                if (!SongDataManager.IsInitialized)
                 {
                     // TODO: Alert the user that it'll take a couple seconds, but the songs will pop up
-                    SongDataManager.RunFullScan();
+
+                    // Initialize the SongDataManager
+                    SongDataManager.Initialize();
+
+                    // If it's still not initialized after that function call
+                    if (!SongDataManager.IsInitialized)
+                    {
+                        // This means that we are scanning for song files and parsing them
+                        // => grab data on the SongScanEvent update
+                        //getDataNow = false;
+                        return;
+                    }
                 }
+
+                // Get the song info from the SongDataManager
+                List<SongData> masterList = SongDataManager.GetSongMasterList();
+
+                // Apply its data to the SongManager View
+                applySongDataToView(masterList);
             }
-            else // If we have a local list already
-            {
-                // => We should just refresh the DGV, no need to rebind or anything
-                dgvSongsMaster.Update();
+            else // If we have the list 
+            { 
+                // Simply reset the bindings and refresh
+                dgvSongsMaster.ResetBindings();
                 dgvSongsMaster.Refresh();
-
-                // Update the view with any song info we have
-                applyLocalSongInfoToToolStripView();
             }
-
 
             // Log the Song Manager GUI as having been populated.
             SMLog.Log("SongManagerFilter Available: " + (String.IsNullOrEmpty(AppSettings.Instance.SongManagerFilter) ? "None" : AppSettings.Instance.SongManagerFilter));
@@ -391,8 +405,6 @@ namespace CustomsForgeSongManager.UControls
                     dgvSongsMaster.Sort(colX, AppSettings.Instance.SortAscending ? ListSortDirection.Ascending : ListSortDirection.Descending);
             }
             */
-
-
         }
 
         /// <summary>
@@ -425,15 +437,15 @@ namespace CustomsForgeSongManager.UControls
         private void applyApplicationSettingsToView()
         {
             // Update checkboxes based on current application settings
-            chkIncludeSubfolders.Checked = AppSettings.Instance.IncludeSubfolders;
-            chkProtectODLC.Checked = AppSettings.Instance.ProtectODLC;
-            cueSearch.Text = AppSettings.Instance.SearchString;
+            chkIncludeSubfolders.Checked = SettingsManager.Settings.IncludeSubfolders;
+            chkProtectODLC.Checked = SettingsManager.Settings.ProtectODLC;
+            cueSearch.Text = SettingsManager.Settings.SearchString;
 
             // ? Apply the current SongManagerFilter as the SavedColumnFilter?
-            DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = AppSettings.Instance.SongManagerFilter;
+            DataGridViewAutoFilterColumnHeaderCell.SavedColumnFilter = SettingsManager.Settings.SongManagerFilter;
 
             // Post arrangement analyzer message?
-            if (!AppSettings.Instance.IncludeArrangementData)
+            if (!SettingsManager.Settings.IncludeArrangementData)
                 colSongAverageTempo.ToolTipText = "Use Arrangement Analyzer, Rescan\r\nFull to confirm BPM accuracy";
             else
                 colSongAverageTempo.ToolTipText = "";
@@ -457,9 +469,6 @@ namespace CustomsForgeSongManager.UControls
             // Set the filtered list as the source for the DataGridView
             setListForDGV(filteredList);
 
-            // force grid data to rebind/refresh
-            //dgvSongsMaster.ResetBindings();
-
             // Restore current sorting if there is one
             if (statusSongsMaster.HasSorting())
             {
@@ -471,21 +480,18 @@ namespace CustomsForgeSongManager.UControls
             ProtectODLC();
 
             // Refresh dgv
-            dgvSongsMaster.Update();
             dgvSongsMaster.Refresh();
 
             // Make the dgv visible again
             dgvSongsMaster.Visible = true;
-
-            
         }
 
         /// <summary>
-        /// Method that is called when handling the SongMasterListChangedEvent.
+        /// Updates the view with the given song data.
         /// Updates the DGV with the new song info.
         /// </summary>
         /// <param name="newInfo"></param>
-        private void applyNewSongInfo(List<SongData> newInfo)
+        private void applySongDataToView(List<SongData> newInfo)
         {
             // Populate the DGV with the new song info
             applySongInfoToDataGridView(newInfo);
@@ -509,6 +515,7 @@ namespace CustomsForgeSongManager.UControls
             _dgvBindingSource = new BindingSource { DataSource = _filteredBindingList };
 
             // Bind it to our SongManager DGV and call reset bindings to refresh the data
+            dgvSongsMaster.DataSource = null;
             dgvSongsMaster.DataSource = _dgvBindingSource;
             dgvSongsMaster.ResetBindings();
 
@@ -517,6 +524,29 @@ namespace CustomsForgeSongManager.UControls
                 // Refresh the dgv
                 dgvSongsMaster.Refresh();
             }
+        }
+
+        /// <summary>
+        /// Sets up dgvSongsMaster with a filtered binding list as its source.
+        /// </summary>
+        private void initializeDgvBindings()
+        {
+            // Set the DGV to not auto generate columns
+            dgvSongsMaster.AutoGenerateColumns = false;
+
+            // Create a "sortable binding list with dropdown filtering"
+            //_localSongList = new List<SongData>();
+
+            // Create the filtered binding list
+            //_filteredBindingList = new FilteredBindingList<SongData>(_localSongList);
+
+            // Create the BindingSource for the datagridview with the data being the filtered list above
+            //_dgvBindingSource = new BindingSource { DataSource = _filteredBindingList };
+
+            // Bind the BindingSource to our datagridview
+            //dgvSongsMaster.DataSource = _dgvBindingSource;
+
+            // => If we initialize this way, we only need to EDIT _filteredBindingList instead of replace the source altogether
         }
 
         /// <summary>
@@ -554,63 +584,7 @@ namespace CustomsForgeSongManager.UControls
         #endregion New Update View Methods
 
 
-        #region New Scan For Songs Methods
-
-        /// <summary>
-        /// Scans the Rocksmith 2014 DLC folder for new or updated songs.
-        /// </summary>
-        private void initiateScanForSongInfo()
-        {
-
-            // NOTE: Original code taken from "Rescan" method.
-
-            /*
-            // Handle DGV stuff prior to scan
-            try
-            {
-                dgvSongsDetail.Visible = false;
-                dgvSongsMaster.DataSource = null;
-            }
-            catch {/* DO NOTHING *
-            */
-
-            // Toggle the UI controls to indicate that a scan is in progress
-            ToggleUIControls(false);
-
-            /*
-            // If asking for a "full rescan" 
-            if (fullRescan)
-            {
-                // force full rescan by clearing MasterCollection before calling BackgroundScan
-                Globals.MasterCollection.Clear();
-
-                // force reload
-                // => by asking the classes that look at these varibles to do something about it
-                Globals.ReloadArrangements = true;
-                Globals.ReloadDuplicates = true;
-                Globals.ReloadSetlistManager = true;
-
-                // do not reload ProfileSongLists
-                //Globals.ReloadProfileSongLists = true;
-
-                // Uncheck the "My CDLC" checkbox
-                tsmiModsMyCDLC.Checked = false;
-            }
-            */
-
-            // Check if the SongDataManager is already doing a full scan
-            if (!SongDataManager.IsPerformingFullScan)
-            {
-                // If it isn't => start a new scan
-                SongDataManager.RunFullScan();
-            }
-
-            // Raise flag to indicate that the scan is in progress
-            // => this flag is then used by HandleAppEvent to determine if we need to re-toggle the UI controls
-            _hasRequestedSongScan = true;
-        }
-
-        #endregion New Scan For Songs Methods
+     
 
 
 
@@ -1438,7 +1412,8 @@ namespace CustomsForgeSongManager.UControls
 
         private void RemoveFilter()
         {
-            AppSettings.Instance.SongManagerFilter = String.Empty;
+            SettingsManager.Settings.SongManagerFilter = String.Empty;
+
             // save current sorting before removing filter
             statusSongsMaster.SaveSorting(dgvSongsMaster);
 
@@ -1448,7 +1423,7 @@ namespace CustomsForgeSongManager.UControls
                 DataGridViewAutoFilterTextBoxColumn.RemoveFilter(dgvSongsMaster);
 
             ResetDetail();
-            UpdateToolStrip();
+            //UpdateToolStrip();
             // reapply sort direction to reselect the filtered song
             statusSongsMaster.RestoreSorting(dgvSongsMaster);
             Refresh();
@@ -1764,10 +1739,10 @@ namespace CustomsForgeSongManager.UControls
         /// <param name="enable"></param>
         private void ToggleUIControls(bool enable)
         {
-            GenExtensions.InvokeIfRequired(cueSearch, delegate { cueSearch.Enabled = enable; });
-            GenExtensions.InvokeIfRequired(menuStrip, delegate { menuStrip.Enabled = enable; });
-            GenExtensions.InvokeIfRequired(lnkLblSelectAll, delegate { lnkLblSelectAll.Enabled = enable; });
-            GenExtensions.InvokeIfRequired(lnkClearSearch, delegate { lnkClearSearch.Enabled = enable; });
+            cueSearch.Enabled = enable;
+            menuStrip.Enabled = enable;
+            lnkLblSelectAll.Enabled = enable;
+            lnkClearSearch.Enabled = enable;
         }
 
 
@@ -2509,6 +2484,11 @@ namespace CustomsForgeSongManager.UControls
             }
         }
 
+        /// <summary>
+        /// Method called when new data is bound to the SongManager dgv
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void dgvSongsMaster_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
             // HACK: catch DataBindingComplete called by other UC's
