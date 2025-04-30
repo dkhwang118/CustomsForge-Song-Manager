@@ -247,7 +247,7 @@ namespace CustomsForgeSongManager.DataManager
             _songsMasterList = new List<SongData>(newSongData);
 
             // Notify the consumers that the song list has been updated
-            AppEventManager.RaiseEvent(new SongScanEvent(false, true, newSongData = new List<SongData>(newSongData)));
+            AppEventManager.RaiseEvent(new SongScanEvent(false, true, new List<SongData>(newSongData)));
         }
 
         /// <summary>

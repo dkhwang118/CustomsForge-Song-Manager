@@ -53,13 +53,6 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         private static RADataGridView _currentDgv = null;
 
-        private static RADataGridViewSettings _currentDgvSettings = null;
-
-        public static RADataGridViewSettings ManagerGridSettings
-        {
-            get { return _currentDgvSettings; }
-        }
-
         /// <summary>
         /// Instance of the current repair options.
         /// </summary>
@@ -140,6 +133,9 @@ namespace CustomsForgeSongManager.DataManager
 
             // Set the settings object as the singleton instance for the AppSettings class
             AppSettings.SetSingletonInstance(_appSettingsInstance);
+
+            // Save the settings to file
+            SaveApplicationSettingsToFile();
 
             // Release the write lock
             _appSettingsLock.ExitWriteLock();
@@ -294,6 +290,14 @@ namespace CustomsForgeSongManager.DataManager
             return false;
         }
 
+        /// <summary>
+        /// Gets the current application settings.
+        /// </summary>
+        /// <returns></returns>
+        public static AppSettings GetApplicationSettings()
+        {
+            return _appSettingsInstance;
+        }
 
         /// <summary>
         /// Sets the given repair options as the current application-wide repair options.
@@ -345,15 +349,14 @@ namespace CustomsForgeSongManager.DataManager
         /// Saves the current application settings to the settings file.
         /// </summary>
         /// <param name="verbose"></param>
-        public static void SaveApplicationSettingsToFile(bool verbose = false)
+        public static void SaveApplicationSettingsToFile()
         {
             try
             {
                 using (var fs = new FileStream(DirectoryManager.AppSettingsPath, FileMode.Create, FileAccess.Write, FileShare.Write))
                 {
                     _appSettingsInstance.SerializeXml(fs);
-                    if (verbose)
-                        SMLog.Log("Saved File: " + Path.GetFileName(DirectoryManager.AppSettingsPath));
+                    SMLog.Log("Saved CFSM Settings File: " + Path.GetFileName(DirectoryManager.AppSettingsPath));
                 }
             }
             catch (Exception ex)
@@ -380,7 +383,6 @@ namespace CustomsForgeSongManager.DataManager
 
             // Save the settings as the current settings for the given data grid view
             _dgvSettingsByDgvName[dgvToSave.Name] = settings;
-            _currentDgvSettings = settings;
 
             // Save the settings to file
             FileTools.SaveDataGridViewSettingsToFile(settings, dgvToSave);
@@ -431,10 +433,10 @@ namespace CustomsForgeSongManager.DataManager
                     SetCurrentDataGridView(dgv);
 
                     // Set the return settings as the current settings
-                    settings = _currentDgvSettings;
+                    settings = GetSettingsForDataGridView(dgv);
 
                     // Save the settings to file
-                    FileTools.SaveDataGridViewSettingsToFile(_currentDgvSettings, dgv);
+                    FileTools.SaveDataGridViewSettingsToFile(settings, dgv);
                 }
             }
             return settings;
@@ -453,8 +455,7 @@ namespace CustomsForgeSongManager.DataManager
             RADataGridViewSettings settings = RAExtensions.SaveColumnOrder(dgv);
 
             // Set the settings
-            RAExtensions.ManagerGridSettings = settings;
-            _currentDgvSettings = settings;
+            //RAExtensions.ManagerGridSettings = settings;
             _dgvSettingsByDgvName[dgv.Name] = settings;
 
             // Release the write lock
@@ -477,19 +478,23 @@ namespace CustomsForgeSongManager.DataManager
             }
         }
 
-        public static RADataGridViewSettings GetCurrentDataGridViewSettings()
+        /// <summary>
+        /// Returns the local settings for the given DataGridView.
+        /// </summary>
+        /// <param name="dgv"></param>
+        /// <returns></returns>
+        public static RADataGridViewSettings GetSettingsForDataGridView(RADataGridView dgv)
         {
-            try
+            RADataGridViewSettings settings = null;
+            _appSettingsLock.EnterReadLock();
+
+            if (_dgvSettingsByDgvName.ContainsKey(dgv.Name))
             {
-                // Get the read lock
-                _appSettingsLock.EnterReadLock();
-                return _currentDgvSettings;
+                settings = _dgvSettingsByDgvName[dgv.Name];
             }
-            finally
-            {
-                // Release the read lock
-                _appSettingsLock.ExitReadLock();
-            }
+
+            _appSettingsLock.ExitReadLock();
+            return settings;
         }
 
         #endregion DataGridView Settings

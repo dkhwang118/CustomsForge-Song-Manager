@@ -55,6 +55,8 @@ namespace CustomsForgeSongManager
         private static void RunApp()
         {
 
+
+
             //==============================================================
             // Start data managers that don't need to be in the main thread
             //==============================================================
@@ -121,7 +123,12 @@ namespace CustomsForgeSongManager
             // Run the application main form
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
             Application.Run(new frmMain());
+
+
+
+
 
             //try
             //{

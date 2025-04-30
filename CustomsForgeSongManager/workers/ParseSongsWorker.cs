@@ -75,13 +75,12 @@ namespace CustomsForgeSongManager.Workers
         /// <param name="actionOnComplete">Action to perform after the parsing work has been completed.</param>
         public ParseSongsWorker(Action actionOnComplete = null)
         {
-            // Set default params
-            WorkerSupportsCancellation = true;
-            WorkerReportsProgress = true;
+            // Name the ProgressPanel worker
+            _processName = "Parsing Song Files";
 
             // Hook the event handlers
-            this.DoWork += parseSongs_DoWork;
-            this.RunWorkerCompleted += parseSongs_OnWorkComplete;
+            this.DoWork += parseSongsWorker_DoWork;
+            this.RunWorkerCompleted += parseSongsWorker_RunWorkComplete;
             _actionOnComplete = actionOnComplete;
         }
 
@@ -91,7 +90,7 @@ namespace CustomsForgeSongManager.Workers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void parseSongs_DoWork(object sender, DoWorkEventArgs e)
+        private void parseSongsWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             // Initialize the data that the worker will use
             if (!tryInitializeWorkerData(out string errorMsg))
@@ -190,7 +189,7 @@ namespace CustomsForgeSongManager.Workers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void parseSongs_OnWorkComplete(object sender, RunWorkerCompletedEventArgs e)
+        private void parseSongsWorker_RunWorkComplete(object sender, RunWorkerCompletedEventArgs e)
         {
             // Change the toolStrip cancel label to not visible
             // TODO: This needs to only be done on the song manager view itself
@@ -198,6 +197,7 @@ namespace CustomsForgeSongManager.Workers
 
             // Handle the Globals.Tristate
             // This eventually needs to go
+            /*
             if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
             {
                 // bWorker.Abort(); // don't use abort
@@ -215,7 +215,7 @@ namespace CustomsForgeSongManager.Workers
 
             // Set the scanning flag
             //Globals.IsScanning = false;
-
+            */
 
             // Create the finalized list
             List<SongData> parsedSongs = _parsedSongData.ToList();

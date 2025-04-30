@@ -1,4 +1,5 @@
-﻿using CustomsForgeSongManager.Forms;
+﻿using CustomsForgeSongManager.DataObjects;
+using CustomsForgeSongManager.Forms;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -7,28 +8,37 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace CustomsForgeSongManager.Workers
 {
     /// <summary>
     /// Worker that shows the progress panel UI window while it runs its task.
     /// </summary>
-    public class ProgressPanelWorker : BackgroundWorker
+    public abstract class ProgressPanelWorker : BackgroundWorker
     {
         private static int _workerIDCounter = 0;
 
         // Bool and lock to initialize the form
         private static bool _isInitialized = false;
-        private static object _globalLock = new object();
 
+        //
         private static frmProgressPanel _progressPanel = null;
         private static bool _panelIsHidden = true;
+        private static object _panelVisibilityLock = new object();
+
+        private static Control _mainForm = null;
+
+        protected string _processName = string.Empty;
+        public string ProcessName {  get { return _processName; } }
 
         /// <summary>
         /// The queue of currently running workers.
         /// </summary>
-        private static List<ProgressPanelWorker> _workers = new List<ProgressPanelWorker>();
+        private static BindingList<ProgressPanelWorker> _workers = new BindingList<ProgressPanelWorker>();
         private static ReaderWriterLockSlim _workerListLock = new ReaderWriterLockSlim();
+        private static BindingSource _workersBindingSource = null;
+
 
         public int WorkerID { get; private set; } = -1;
 
@@ -38,58 +48,78 @@ namespace CustomsForgeSongManager.Workers
             WorkerReportsProgress = true;
             WorkerID = _workerIDCounter++;
 
-            initIfNecessary();
+            this.DoWork += progressPanelWorker_DoWork;
+            this.RunWorkerCompleted += progressPanelWorker_OnWorkComplete;
 
-            this.DoWork += initWindowIfNeeded_DoWork;
-            this.RunWorkerCompleted += closeFormIfNeeded_OnWorkComplete;
+        }
 
-            // Put this background worker into the queue of workers in RAM
+        /// <summary>
+        /// Handles the showing of the ProgressPanel form if needed, 
+        /// then executes the OnDoWork function provided by implementing classes.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void progressPanelWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            bool showWindow = false;
+
+            // Get write lock for worker list
             _workerListLock.EnterWriteLock();
+
+            // If I am the first worker to queue
+            if (_workers.Count == 0)
+            {
+                // I am also the one who will call Show on the ProgressPanel form
+                showWindow = true;
+            }
+
             _workers.Add(this);
+
             _workerListLock.ExitWriteLock();
-        }
 
-        private void initWindowIfNeeded_DoWork(object sender, DoWorkEventArgs e)
-        {
-            if (_panelIsHidden)
+            if (showWindow)
             {
-                lock (_globalLock)
+                _mainForm.Invoke(new Action(() =>
                 {
-                    if (_panelIsHidden)
-                    {
-                        _progressPanel.Show();
-                        _panelIsHidden = false;
-                    }
-                }
+                    _progressPanel.BringToFront();
+                    _progressPanel.Show();
+                }));
             }
         }
 
-        private void closeFormIfNeeded_OnWorkComplete(object sender, RunWorkerCompletedEventArgs e)
+        private void progressPanelWorker_OnWorkComplete(object sender, RunWorkerCompletedEventArgs e)
         {
-            // If hidden and I'm *potentially* the last worker
-            if (_panelIsHidden && _workers.Count == 1)
+            bool hidePanel = false;
+
+            // Get the lock for the worker list
+            _workerListLock.EnterWriteLock(); 
+
+            // Remove myself from queue
+            _workers.Remove(this);
+
+            // If I am the last worker in the queue
+            if (_workers.Count == 0)
             {
-                // Get the lock and check again
-                lock (_globalLock)
+                // I will also hide the Progress Panel
+                hidePanel = true;
+            }
+
+            _workerListLock.ExitWriteLock();
+
+            if (hidePanel)
+            {
+                _mainForm.Invoke(new Action(() =>
                 {
-                    // Get the lock for the worker list
-                    _workerListLock.EnterWriteLock();
-
-                    if (_panelIsHidden && _workers.Count == 1)
-                    {
-                        _progressPanel.Hide();
-                        _panelIsHidden = true;
-
-                        // Remove myself from queue
-
-                        _workers.Remove(this);
-                    }
-
-                    _workerListLock.ExitWriteLock();
-                }
+                    _progressPanel.Hide();
+                }));
             }
         }
 
+        /// <summary>
+        /// Override method. Worker is the same if they have the same WorkerID.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         public override bool Equals(object obj)
         {
             if (obj != null)
@@ -105,26 +135,28 @@ namespace CustomsForgeSongManager.Workers
             return base.Equals(obj);
         }
 
-        private static void initIfNecessary()
+
+        public override int GetHashCode()
         {
-            if (!_isInitialized)
-            {
-                lock (_globalLock)
-                {
-                    if (!_isInitialized)
-                    {
-                        // Initialize the ProgressPanel form
-                        _progressPanel = new frmProgressPanel();
-                        _progressPanel.Hide();
-                        _isInitialized = true;
-                    }
-                }
-            }
+            return WorkerID.GetHashCode();
         }
 
-        public static void InitializeForm()
+        /// <summary>
+        /// Initializes frmProgressPanel.
+        /// </summary>
+        /// <param name="mainFormControl"></param>
+        public static void InitializeProgressPanelWindow(Control mainFormControl)
         {
-            initIfNecessary();
+            // Init the workers binding source
+            _workersBindingSource = new BindingSource { DataSource = _workers };
+
+            // Initialize the ProgressPanel form
+            _progressPanel = new frmProgressPanel(mainFormControl, _workersBindingSource);
+            _progressPanel.WindowState = FormWindowState.Normal;
+
+            _mainForm = mainFormControl;
+
+            
         }
     }
     

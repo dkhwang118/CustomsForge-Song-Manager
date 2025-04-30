@@ -97,8 +97,8 @@ namespace CustomsForgeSongManager.Forms
             // Initialize the form and its components
             InitializeComponent();
 
-            // Init the ProgressPanel
-            ProgressPanelWorker.InitializeForm();
+            // Start the Progress Panel window
+            ProgressPanelWorker.InitializeProgressPanelWindow(this);
 
             // Setup the log textbox
             SMLog.SetMainLogTextBox(tbLog);

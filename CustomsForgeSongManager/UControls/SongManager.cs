@@ -323,7 +323,7 @@ namespace CustomsForgeSongManager.UControls
                 if ((appEvent as SongScanEvent).SongScanComplete)
                 {
                     // Refresh the song master list
-                    this.Invoke(delegate
+                    _mainWindow.Invoke(delegate
                     {
                         // Populate the DGV with the new song info
                         applySongDataToView(((SongScanEvent)appEvent).SongData);

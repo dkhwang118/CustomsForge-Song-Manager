@@ -213,9 +213,10 @@ namespace CustomsForgeSongManager.Workers
             _numSongsFailed = 0;
 
             // Hook up the event handlers
-            this.DoWork += repairSongs_DoWork;
-            this.ProgressChanged += repairSongs_ProgressChanged;
-            this.RunWorkerCompleted += repairSongs_WorkComplete;
+            this.DoWork += repairSongsWorker_DoWork;
+            this.ProgressChanged += repairSongsWorker_ProgressChanged;
+            this.RunWorkerCompleted += repairSongsWorker_RunWorkComplete;
+
         }
 
         /// <summary>
@@ -223,7 +224,7 @@ namespace CustomsForgeSongManager.Workers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void repairSongs_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        private void repairSongsWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             // Report progress to the parent control
 
@@ -244,7 +245,7 @@ namespace CustomsForgeSongManager.Workers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void repairSongs_DoWork(object sender, DoWorkEventArgs e)
+        private void repairSongsWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             // First, we make sure 'dlc' folder is clean        
             FileTools.CleanDlcFolder();
@@ -389,10 +390,11 @@ namespace CustomsForgeSongManager.Workers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void repairSongs_WorkComplete(object sender, RunWorkerCompletedEventArgs e)
+        private void repairSongsWorker_RunWorkComplete(object sender, RunWorkerCompletedEventArgs e)
         {
             GenExtensions.InvokeIfRequired(_mainForm, delegate { Globals.TsLabel_Cancel.Visible = false; });
 
+            /*
             if (e.Cancelled || Globals.TsLabel_Cancel.Text == "Canceling" || Globals.CancelBackgroundScan)
             {
                 // bWorker.Abort(); // don't use abort
@@ -403,11 +405,14 @@ namespace CustomsForgeSongManager.Workers
             }
             else
             {
-                ReportProgress(100);
-                //counterStopwatch.Stop();
-                //SMLog.Log(String.Format("Finished " + WorkDescription.ToLower() + " took: {0}", counterStopwatch.Elapsed));
-                Globals.WorkerFinished = Globals.Tristate.True;
-            }
+            */
+
+            ReportProgress(100);
+            //counterStopwatch.Stop();
+            //SMLog.Log(String.Format("Finished " + WorkDescription.ToLower() + " took: {0}", counterStopwatch.Elapsed));
+            Globals.WorkerFinished = Globals.Tristate.True;
+            
+            
 
             Globals.RescanProfileSongLists = false;
             Globals.RescanSetlistManager = false;

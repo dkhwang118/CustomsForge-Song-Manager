@@ -861,8 +861,6 @@ namespace CustomsForgeSongManager.LocalTools
         /// <param name="dgvToSave"></param>
         public static void SaveDataGridViewSettingsToFile(RADataGridViewSettings settings, DataGridView dgvToSave)
         {
-            Debug.WriteLine("Save DataGridView Settings: " + dgvToSave.Name);
-
             try
             {
                 // If the directory for the grid settings folder does not exist, create it
@@ -874,7 +872,7 @@ namespace CustomsForgeSongManager.LocalTools
                 // Save the current DataGridView column order to the specified file
                 string gridSettingsPath = DirectoryManager.GetGridSettingsPathForGridName(dgvToSave.Name);
                 SerialExtensions.SaveToFile(gridSettingsPath, settings);
-                SMLog.Log("Saved File: " + Path.GetFileName(gridSettingsPath));             
+                SMLog.Log("Saved DataGridView Settings File: " + Path.GetFileName(gridSettingsPath));             
             }
             catch (Exception ex)
             {
