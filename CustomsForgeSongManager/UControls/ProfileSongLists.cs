@@ -22,6 +22,7 @@ using System.Reflection;
 using UserProfileLib.Objects;
 using System.Text;
 using Microsoft.Win32;
+using CustomsForgeSongManager.DataManager;
 
 
 namespace CustomsForgeSongManager.UControls
@@ -60,11 +61,14 @@ namespace CustomsForgeSongManager.UControls
         public void PopulateProfileSongLists()
         {
             SMLog.Log("Populating Profile Song Lists GUI ...");
-            DgvExtensions.DoubleBuffered(dgvSongListMaster);
-            Globals.Settings.LoadSettingsFromFile(dgvSongListMaster, true);
+
+            //DgvExtensions.DoubleBuffered(dgvSongListMaster);
+            //Globals.Settings.LoadSettingsFromFile(dgvSongListMaster, true);
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSongListMaster);
+
             SMLog.Log("Profile Song Lists GUI Activated ...");
 
-            dlcDir = Constants.Rs2DlcFolder;
+            dlcDir = DirectoryManager.Rs2DlcFolder;
             cdlcDir = Path.Combine(dlcDir, "CDLC").ToLower();
 
             // bind datasource to grid

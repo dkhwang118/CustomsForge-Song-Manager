@@ -96,7 +96,7 @@ namespace CustomsForgeSongManager.UControls
                 }
 
                 // Save the settings to the default path for now anyways
-                SettingsManager.SaveDataGridViewSettingsToFile(dgvCurrent);
+                SettingsManager.SaveDataGridViewSettings(dgvCurrent);
             }
 
 
@@ -138,6 +138,7 @@ namespace CustomsForgeSongManager.UControls
             chkCleanOnClosing.Checked = settings.CleanOnClosing;
         }
 
+        /*
         public void LoadSettingsFromFile(DataGridView dgvCurrent = null, bool verbose = false)
         {
             try
@@ -174,7 +175,7 @@ namespace CustomsForgeSongManager.UControls
             {
                 SMLog.Log(String.Format("<Error> LoadSettingsFromFile: {0}", ex.Message));
             }
-        }
+        }*/
 
         /// <summary>
         /// Save the current AppSettings instance to file.
@@ -357,10 +358,15 @@ namespace CustomsForgeSongManager.UControls
 
         private void Settings_Leave(object sender, EventArgs e)
         {
+            // This method is made obsolete by the SettingsManager.ShutDown() call
+            // during frmMain's FormClosing event
+            // => Settings inside SettingsManager will always be saved when application is exited.
+            /*
             if (String.IsNullOrEmpty(AppSettings.Instance.RSInstalledDir))
                 ValidateRsDir();
 
             SaveSettingsToFile(Globals.DgvCurrent);
+            */
         }
 
         private void btnEmptyLogs_Click(object sender, EventArgs e)
@@ -385,14 +391,22 @@ namespace CustomsForgeSongManager.UControls
 
         private void btnSettingsLoad_Click(object sender, EventArgs e)
         {
+            /*
             if (!String.IsNullOrEmpty(cueDgvSettingsPath.Text))
                 SetGlobalsDgvCurrent(GetDgvGridName(cueDgvSettingsPath.Text));
 
             if (String.IsNullOrEmpty(Globals.DgvCurrent.Name))
                 return;
+            */
 
-            LoadSettingsFromFile(Globals.DgvCurrent, true);
-            PopulateSettings(Globals.DgvCurrent);
+            // Load the application settings and the current DGV settings
+            //LoadSettingsFromFile(Globals.DgvCurrent, true);
+            SettingsManager.TryLoadApplicationSettingsFromFile();
+            // TODO: Load current DGV settings
+
+            // Populate the Settings view with the new settings
+            //PopulateSettings(Globals.DgvCurrent);
+            populateView();
         }
 
         private void btnSettingsSave_Click(object sender, EventArgs e)

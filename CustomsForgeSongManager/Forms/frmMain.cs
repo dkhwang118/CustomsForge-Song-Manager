@@ -105,8 +105,6 @@ namespace CustomsForgeSongManager.Forms
 
             // First - Try to load the application settings
             SettingsManager.Initialize();
-            multithreadCheck();
-
 
             // Set the form's title
             setApplicationTitle();
@@ -188,8 +186,8 @@ namespace CustomsForgeSongManager.Forms
             // Event handler to handle form closing events
             this.FormClosing += (object sender, FormClosingEventArgs e) =>
             {
-                // Save settings to file
-                SettingsManager.SaveApplicationSettingsToFile();
+                // Save application AND DGV settings to files
+                SettingsManager.ShutDown();
 
                 // Dispose of the DLogger
                 SMLog.Logger.RemoveTargetNotifyIcon(notifyIcon_Main);
@@ -376,29 +374,6 @@ namespace CustomsForgeSongManager.Forms
                     break;
             }
 
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        private void multithreadCheck()
-        {
-            // Get this system's core count
-            var coreCount = SysExtensions.GetCoreCount();
-            if (coreCount == 0)
-            {
-                coreCount = 1;
-            }
-
-            // If the system has more than 1 core
-            if (coreCount > 1)
-            {
-                SettingsManager.Settings.MultiThread = 1;
-            }
-            else
-            {
-                SettingsManager.Settings.MultiThread = 0;
-            }
         }
 
         #endregion Initialization Methods

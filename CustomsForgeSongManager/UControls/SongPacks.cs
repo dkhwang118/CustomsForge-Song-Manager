@@ -20,6 +20,7 @@ using SevenZip;
 using RocksmithToolkitLib.XmlRepository;
 using RocksmithToolkitLib.PSARC;
 using CustomsForgeSongManager.LocalTools;
+using CustomsForgeSongManager.DataManager;
 
 namespace CustomsForgeSongManager.UControls
 {
@@ -488,9 +489,16 @@ namespace CustomsForgeSongManager.UControls
         private void PopulateSongPacks()
         {
             Globals.TsProgressBar_Main.Value = 0;
+
             SMLog.Log("Populating Song Packs GUI ...");
-            Globals.Settings.LoadSettingsFromFile(dgvSongPacks);
+
+            // Load the DGV settings
+            //Globals.Settings.LoadSettingsFromFile(dgvSongPacks);
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSongPacks);
+
             Globals.TuningXml = TuningDefinitionRepository.Instance.LoadTuningDefinitions(GameVersion.RS2014);
+            
+            
             var rsDir = AppSettings.Instance.RSInstalledDir;
 
             if (Directory.Exists(rsDir))

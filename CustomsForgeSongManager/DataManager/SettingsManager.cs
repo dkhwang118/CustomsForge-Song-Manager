@@ -36,6 +36,8 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         private static ReaderWriterLockSlim _appSettingsLock = new ReaderWriterLockSlim();
 
+        private static object _dgvSettingsLock = new object();
+
         /// <summary>
         /// The application settings object that holds all the application settings.
         /// </summary>
@@ -63,20 +65,138 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         private static AudioOptions _audioOptions = null;
 
+        /// <summary>
+        /// The number of CPU cores for the system.
+        /// </summary>
+        private static int _coreCount = 1;
+
+        /// <summary>
+        /// The number of CPU cores for the system.
+        /// </summary>
+        public static int CoreCount { get { return _coreCount; } }
+
         #endregion Fields
 
-
+        /// <summary>
+        /// Method to initialize the SettingsManager.
+        /// Attempts to load the application settings from file,
+        /// but if it can't it creates a new AppSettings instance.
+        /// </summary>
         public static void Initialize()
         {
             // If we can't load the app settings from the file
-            if (!TryLoadApplicationSettingsFromFile(DirectoryManager.AppSettingsPath))
+            if (!TryLoadApplicationSettingsFromFile())
             {
                 // TODO: Ask the user to select its location or prompt to create a new one
                 // For now, we will create a new one with default values
                 SetApplicationSettings(AppSettings.StartSingletonInstance());
             }
+
+            // Get the system's core count
+            int coreCount = SysExtensions.GetCoreCount();
+            if (coreCount < 1)
+            {
+                _coreCount = 1;
+            }
+            else
+            {
+                _coreCount = coreCount;
+            }
         }
 
+
+
+        #region Application Settings
+        /*
+        /// <summary>
+        /// Set the application settings with the given list of tuples, where each tuple contains a setting name and its value.
+        /// </summary>
+        /// <param name="appSettings"></param>
+        public static void SetApplicationSettings(List<Tuple<string, object>> appSettings)
+        {
+            // Get the write lock
+            _appSettingsLock.EnterWriteLock();
+
+            // Set the application settings
+            foreach (Tuple<string, object> setting in appSettings)
+            {
+                // Use the private method to do the setting
+                setApplicationSetting(setting.Item1, setting.Item2);
+            }
+
+            // Release the write lock
+            _appSettingsLock.ExitWriteLock();
+        }
+
+                /// <summary>
+        /// Attempts to get the application setting with the given name's string value.
+        /// </summary>
+        /// <param name="settingName"></param>
+        /// <param name="settingValue"></param>
+        /// <returns></returns>
+        public static bool TryGetApplicationSettingStringValue(string settingName, out string settingValue)
+        {
+            // Get the read lock
+            _appSettingsLock.EnterReadLock();
+
+            // If we can get the setting from the dictionary
+            if (_appSettings.TryGetValue(settingName, out ApplicationSetting setting))
+            {
+                // Get the string value of the setting
+                string settingVal = setting.StringValue;
+
+                if (settingVal != null)
+                {
+                    settingValue = settingVal;
+                    _appSettingsLock.ExitReadLock();
+                    return true;
+                }
+            }
+
+            // If we can't get the setting, or it's not a string, return false
+            settingValue = null;
+            _appSettingsLock.ExitReadLock();
+            return false;
+        }
+
+        /// <summary>
+        /// Set the application setting with the given name, with the given value.
+        /// </summary>
+        /// <param name="settingName">The name of the Application Setting.</param>
+        /// <param name="settingValue">The value of the Application Setting.</param>
+        public static void SetApplicationSetting(string settingName, object settingValue)
+        {
+            // Get the write lock
+            _appSettingsLock.EnterWriteLock();
+
+            // Use the private method to do the setting
+            setApplicationSetting(settingName, settingValue);
+
+            // Release the write lock
+            _appSettingsLock.ExitWriteLock();
+        }
+
+        /// <summary>
+        /// Private method to set the application setting with the given name, with the given value.
+        /// Created so the public methods can handle the read/write locking.
+        /// </summary>
+        /// <param name="settingName"></param>
+        /// <param name="settingValue"></param>
+        private static void setApplicationSetting(string settingName, object settingValue)
+        {
+            // If the setting is found in the dictionary
+            if (_appSettings.TryGetValue(settingName, out ApplicationSetting setting))
+            {
+                // Update its value within the ApplicationSetting object
+                setting.SetValue(settingValue);
+            }
+            else
+            {
+                // If the setting is not found, add it to the list
+                _appSettings.Add(settingName, new ApplicationSetting(settingName, settingValue));
+            }
+        }
+        */
 
         /// <summary>
         /// Set the application settings with the given AppSettings object.
@@ -88,18 +208,20 @@ namespace CustomsForgeSongManager.DataManager
             _appSettingsLock.EnterWriteLock();
 
             // Set the application settings
+            /*
             foreach (Tuple<string, object> setting in newSettings.GetSettings())
             {
                 // Use the private method to do the setting
                 setApplicationSetting(setting.Item1, setting.Item2);
             }
+            */
 
             // Set the application settings object
             _appSettingsInstance = newSettings;
 
             // If we do not have audio options in the new settings
             // BUT we have audio options in the current settings
-            if (_appSettingsInstance.AudioOptions != null )
+            if (_appSettingsInstance.AudioOptions != null)
             {
                 // Set the audio options object
                 _audioOptions = _appSettingsInstance.AudioOptions;
@@ -142,64 +264,6 @@ namespace CustomsForgeSongManager.DataManager
         }
 
         /// <summary>
-        /// Set the application settings with the given list of tuples, where each tuple contains a setting name and its value.
-        /// </summary>
-        /// <param name="appSettings"></param>
-        public static void SetApplicationSettings(List<Tuple<string, object>> appSettings)
-        {
-            // Get the write lock
-            _appSettingsLock.EnterWriteLock();
-
-            // Set the application settings
-            foreach (Tuple<string, object> setting in appSettings)
-            {
-                // Use the private method to do the setting
-                setApplicationSetting(setting.Item1, setting.Item2);
-            }
-
-            // Release the write lock
-            _appSettingsLock.ExitWriteLock();
-        }
-
-        /// <summary>
-        /// Set the application setting with the given name, with the given value.
-        /// </summary>
-        /// <param name="settingName">The name of the Application Setting.</param>
-        /// <param name="settingValue">The value of the Application Setting.</param>
-        public static void SetApplicationSetting(string settingName, object settingValue)
-        {
-            // Get the write lock
-            _appSettingsLock.EnterWriteLock();
-
-            // Use the private method to do the setting
-            setApplicationSetting(settingName, settingValue);
-
-            // Release the write lock
-            _appSettingsLock.ExitWriteLock();
-        }
-
-        /// <summary>
-        /// Private method to set the application setting with the given name, with the given value.
-        /// Created so the public methods can handle the read/write locking.
-        /// </summary>
-        /// <param name="settingName"></param>
-        /// <param name="settingValue"></param>
-        private static void setApplicationSetting(string settingName, object settingValue)
-        {
-            // If the setting is found in the dictionary
-            if (_appSettings.TryGetValue(settingName, out ApplicationSetting setting))
-            {
-                // Update its value within the ApplicationSetting object
-                setting.SetValue(settingValue);
-            }
-            else
-            {
-                // If the setting is not found, add it to the list
-                _appSettings.Add(settingName, new ApplicationSetting(settingName, settingValue));
-            }
-        }
-
-        /// <summary>
         /// Set the application setting with the given ApplicationSetting object.
         /// </summary>
         /// <param name="newSetting"></param>
@@ -236,46 +300,20 @@ namespace CustomsForgeSongManager.DataManager
         }
 
         /// <summary>
-        /// Attempts to get the application setting with the given name's string value.
-        /// </summary>
-        /// <param name="settingName"></param>
-        /// <param name="settingValue"></param>
-        /// <returns></returns>
-        public static bool TryGetApplicationSettingStringValue(string settingName, out string settingValue)
-        {
-            // Get the read lock
-            _appSettingsLock.EnterReadLock();
-
-            // If we can get the setting from the dictionary
-            if (_appSettings.TryGetValue(settingName, out ApplicationSetting setting))
-            {
-                // Get the string value of the setting
-                string settingVal = setting.StringValue;
-
-                if (settingVal != null)
-                {
-                    settingValue = settingVal;
-                    _appSettingsLock.ExitReadLock();
-                    return true;
-                }
-            }
-
-            // If we can't get the setting, or it's not a string, return false
-            settingValue = null;
-            _appSettingsLock.ExitReadLock();
-            return false;
-        }
-
-        /// <summary>
         /// Loads the application settings from the settings file.
         /// </summary>
         /// <param name="verbose"></param>
-        public static bool TryLoadApplicationSettingsFromFile(string settingsFilePath, bool verbose = false)
+        public static bool TryLoadApplicationSettingsFromFile(string settingsFilePath = null, bool verbose = false)
         {
             AppSettings settings = null;
             try
             {
                 // Try to read the settings from the file 
+                if (settingsFilePath == null)
+                {
+                    settingsFilePath = DirectoryManager.AppSettingsPath;
+                }           
+
                 if (AppSettings.TryGetSettingsFromFile(settingsFilePath, out settings))
                 {
                     // If the settings were successfully loaded, set the settings instance
@@ -365,6 +403,8 @@ namespace CustomsForgeSongManager.DataManager
             }
         }
 
+       #endregion Application Settings
+
         // Data Grid View Stuff
         #region DataGridView Settings
 
@@ -373,7 +413,7 @@ namespace CustomsForgeSongManager.DataManager
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="dgvToSave"></param>
-        public static void SaveDataGridViewSettingsToFile(DataGridView dgvToSave)
+        public static void SaveDataGridViewSettings(DataGridView dgvToSave)
         {
             // Get the write lock
             _appSettingsLock.EnterWriteLock();
@@ -400,50 +440,26 @@ namespace CustomsForgeSongManager.DataManager
         {
             RADataGridViewSettings settings = null;
 
-            // Check if the DGV settings are already stored in RAM 
-            if (_dgvSettingsByDgvName.TryGetValue(dgv.Name, out settings))
-            {
-                // If the settings are already stored, this means these are the latest version
-                // => Apply them to the ref DGV
-                dgv.ReLoadColumnOrder(settings.ColumnOrder);
+            // => Load the settings from file
+            // respect processing order => ?????
+            DgvExtensions.DoubleBuffered(dgv);
+            CFSMTheme.InitializeDgvAppearance(dgv);
 
-                // Set the DGV as the current DGV
-                SetCurrentDataGridView(dgv);
-            }
-            else  // If the settings are not stored, we need to try loading them from file
-            {
-                // => Load the settings from file
-                // respect processing order => ?????
-                DgvExtensions.DoubleBuffered(dgv);
-                CFSMTheme.InitializeDgvAppearance(dgv);
 
-                // reload column order, width, visibility, and settings
-                // If we successfully loaded the DataGridView settings
-                if (FileTools.TryLoadDataGridViewSettingsFromFile(dgv, out settings))
-                {
-                    // Use it to reload grid settings
-                    dgv.ReLoadColumnOrder(settings.ColumnOrder);
+            // Get the settings for the given DGV
+            settings = GetSettingsForDataGridView(dgv);
 
-                    // Set the dgv as the current DGV
-                    SetCurrentDataGridView(dgv);
-                }
-                else // If we can't load the settings, create a new settings object
-                {
-                    // Set the settings as the new DGV settings
-                    SetCurrentDataGridView(dgv);
+            // Apply them to the ref DGV
+            dgv.ReLoadColumnOrder(settings.ColumnOrder);
 
-                    // Set the return settings as the current settings
-                    settings = GetSettingsForDataGridView(dgv);
+            // Set the given dgv as the current one
+            SetCurrentDataGridView(dgv, settings);
 
-                    // Save the settings to file
-                    FileTools.SaveDataGridViewSettingsToFile(settings, dgv);
-                }
-            }
             return settings;
         }
 
 
-        public static void SetCurrentDataGridView(RADataGridView dgv)
+        public static void SetCurrentDataGridView(RADataGridView dgv, RADataGridViewSettings settings = null)
         {
             // Get the write lock
             _appSettingsLock.EnterWriteLock();
@@ -452,10 +468,12 @@ namespace CustomsForgeSongManager.DataManager
             _currentDgv = dgv;
 
             // Get the settings
-            RADataGridViewSettings settings = RAExtensions.SaveColumnOrder(dgv);
+            if (settings == null)
+            {
+                settings = RAExtensions.SaveColumnOrder(dgv);
+            }
 
             // Set the settings
-            //RAExtensions.ManagerGridSettings = settings;
             _dgvSettingsByDgvName[dgv.Name] = settings;
 
             // Release the write lock
@@ -486,17 +504,51 @@ namespace CustomsForgeSongManager.DataManager
         public static RADataGridViewSettings GetSettingsForDataGridView(RADataGridView dgv)
         {
             RADataGridViewSettings settings = null;
-            _appSettingsLock.EnterReadLock();
-
-            if (_dgvSettingsByDgvName.ContainsKey(dgv.Name))
+            lock (_dgvSettingsLock)
             {
-                settings = _dgvSettingsByDgvName[dgv.Name];
+                // If we can't get the settings from our local dictionary
+                if (!_dgvSettingsByDgvName.TryGetValue(dgv.Name, out settings))
+                {
+                    // If we can load the settings from our file
+                    if (FileTools.TryLoadDataGridViewSettingsFromFile(dgv, out settings))
+                    {
+                        // Set the settings in our local dictionary
+                        _dgvSettingsByDgvName[dgv.Name] = settings;
+                    }
+                    else
+                    {
+                        // Create the settings
+                        settings = RAExtensions.SaveColumnOrder(dgv);
+                        _dgvSettingsByDgvName[dgv.Name] = settings;
+                        FileTools.SaveDataGridViewSettingsToFile(settings, dgv);
+                    }
+                }
             }
 
-            _appSettingsLock.ExitReadLock();
+
             return settings;
         }
 
         #endregion DataGridView Settings
+
+
+        #region Shutdown Call
+
+        /// <summary>
+        /// Shuts down the SettingsManager by saving all current settings to file.
+        /// </summary>
+        public static void ShutDown()
+        {
+            // Save the current application settings
+            SaveApplicationSettingsToFile();
+
+            // Save all of the current DGV settings that we have to file
+            foreach (KeyValuePair<string,RADataGridViewSettings> kvp  in _dgvSettingsByDgvName)
+            {
+                FileTools.SaveDataGridViewSettingsToFile(kvp.Value, kvp.Key);
+            }
+        }
+
+        #endregion
     }
 }

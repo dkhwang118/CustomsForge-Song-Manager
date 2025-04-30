@@ -21,7 +21,8 @@ using System.Xml;
 using CustomsForgeSongManager.Properties;
 using System.Net.Cache;
 using RocksmithToolkitLib;
- 
+using CustomsForgeSongManager.DataManager;
+
 
 namespace CustomsForgeSongManager.UControls
 {
@@ -181,13 +182,16 @@ namespace CustomsForgeSongManager.UControls
             // respect processing order
             DgvExtensions.DoubleBuffered(dgvArrangements);
             CFSMTheme.InitializeDgvAppearance(dgvArrangements);
-            // reload column order, width, visibility
-            Globals.Settings.LoadSettingsFromFile(dgvArrangements);
 
+            // reload column order, width, visibility
+            /*
+            Globals.Settings.LoadSettingsFromFile(dgvArrangements); <==== we only make this call to set Globals.DGVCurrent, not to actually get app settings from file.
             if (RAExtensions.ManagerGridSettings != null)
                 dgvArrangements.ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
             else
                 Globals.Settings.SaveSettingsToFile(dgvArrangements);
+            */
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvArrangements);
 
             // lock OfficialDLC from being selected
             foreach (DataGridViewRow row in dgvArrangements.Rows)
@@ -364,16 +368,20 @@ namespace CustomsForgeSongManager.UControls
         private void PopulateMenuWithColumnHeaders(ContextMenuStrip contextMenuStrip)
         {
             // fix for contextual menu bug 'Object reference not set to an instance of an object.' 
-            // that occur on startup when dgv settings have not yet been saved       
+            // that occur on startup when dgv settings have not yet been saved       <==== this is not a bug
+            /*                                                                       <==== this is literally what happens when you don't set an instance for an object reference
             if (RAExtensions.ManagerGridSettings == null)
             {
                 Globals.Settings.SaveSettingsToFile(dgvArrangements);
                 Globals.Settings.LoadSettingsFromFile(dgvArrangements);
                 dgvArrangements.ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
             }
+            */
+
 
             contextMenuStrip.Items.Clear();
-            foreach (ColumnOrderItem columnOrderItem in RAExtensions.ManagerGridSettings.ColumnOrder)
+            RADataGridViewSettings dgvSettings = SettingsManager.GetSettingsForDataGridView(dgvArrangements);
+            foreach (ColumnOrderItem columnOrderItem in dgvSettings.ColumnOrder)
             {
                 var cn = dgvArrangements.Columns[columnOrderItem.ColumnIndex].Name;
                 if (cn.ToLower().StartsWith("col"))

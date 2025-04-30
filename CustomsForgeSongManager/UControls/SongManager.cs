@@ -269,7 +269,7 @@ namespace CustomsForgeSongManager.UControls
             statusSongsMaster.SaveSorting(dgvSongsMaster);
 
             // Save the current settings for the grid
-            SettingsManager.SaveDataGridViewSettingsToFile(dgvSongsMaster);
+            SettingsManager.SaveDataGridViewSettings(dgvSongsMaster);
 
             // Reset bindings??? I dont think we have to do this
             //GetGrid().ResetBindings(); // force grid data to rebind/refresh
@@ -1263,21 +1263,28 @@ namespace CustomsForgeSongManager.UControls
         {
             // fix for contextual menu bug 'Object reference not set to an instance of an object.' 
             // that occur on startup when dgv settings have not yet been saved       
+            /*
             if (RAExtensions.ManagerGridSettings == null)
             {
-                Globals.Settings.SaveSettingsToFile(dgvSongsMaster);
-                Globals.Settings.LoadSettingsFromFile(dgvSongsMaster);
+                //Globals.Settings.SaveSettingsToFile(dgvSongsMaster);
+                //Globals.Settings.LoadSettingsFromFile(dgvSongsMaster);
                 dgvSongsMaster.ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
             }
+            */
 
             contextMenuStrip.Items.Clear();
-            foreach (ColumnOrderItem columnOrderItem in RAExtensions.ManagerGridSettings.ColumnOrder)
+            RADataGridViewSettings dgvSettings = SettingsManager.GetSettingsForDataGridView(dgvSongsMaster);
+            foreach (ColumnOrderItem columnOrderItem in dgvSettings.ColumnOrder)
             {
                 var cn = dgvSongsMaster.Columns[columnOrderItem.ColumnIndex].Name;
                 if (cn.ToLower().StartsWith("col"))
                     cn = cn.Remove(0, 3);
 
-                ToolStripMenuItem columnsMenuItem = new ToolStripMenuItem(cn, null, ColumnMenuItemClick) { Checked = dgvSongsMaster.Columns[columnOrderItem.ColumnIndex].Visible, Tag = dgvSongsMaster.Columns[columnOrderItem.ColumnIndex].Name };
+                ToolStripMenuItem columnsMenuItem = new ToolStripMenuItem(cn, null, ColumnMenuItemClick)
+                { 
+                    Checked = dgvSongsMaster.Columns[columnOrderItem.ColumnIndex].Visible, 
+                    Tag = dgvSongsMaster.Columns[columnOrderItem.ColumnIndex].Name 
+                };
                 contextMenuStrip.Items.Add(columnsMenuItem);
             }
         }

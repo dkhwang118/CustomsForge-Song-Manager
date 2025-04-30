@@ -16,6 +16,7 @@ using System.ComponentModel;
 using CustomsForgeSongManager.Properties;
 using GenTools;
 using CustomsForgeSongManager.SongEditor;
+using CustomsForgeSongManager.DataManager;
 
 
 // TODO: try loading Globals.MasterCollection to dgvDuplicates and then filter data
@@ -151,13 +152,16 @@ namespace CustomsForgeSongManager.UControls
             DgvExtensions.DoubleBuffered(dgvDuplicates);
             LoadFilteredBindingList(duplicateList);
             CFSMTheme.InitializeDgvAppearance(dgvDuplicates);
+           
             // reload column order, width, visibility
+            /*
             Globals.Settings.LoadSettingsFromFile(dgvDuplicates);
-
             if (RAExtensions.ManagerGridSettings != null)
                 dgvDuplicates.ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
             else
                 Globals.Settings.SaveSettingsToFile(dgvDuplicates);
+            */
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvDuplicates);
 
             if (findDupPIDs)
             {
@@ -287,15 +291,18 @@ namespace CustomsForgeSongManager.UControls
         {
             // fix for contextual menu bug 'Object reference not set to an instance of an object.' 
             // that occur on startup when dgv settings have not yet been saved       
+            /*
             if (RAExtensions.ManagerGridSettings == null)
             {
                 Globals.Settings.SaveSettingsToFile(dgvDuplicates);
                 Globals.Settings.LoadSettingsFromFile(dgvDuplicates);
                 dgvDuplicates.ReLoadColumnOrder(RAExtensions.ManagerGridSettings.ColumnOrder);
             }
+            */
 
             contextMenuStrip.Items.Clear();
-            foreach (ColumnOrderItem columnOrderItem in RAExtensions.ManagerGridSettings.ColumnOrder)
+            RADataGridViewSettings dgvSettings = SettingsManager.GetSettingsForDataGridView(dgvDuplicates);
+            foreach (ColumnOrderItem columnOrderItem in dgvSettings.ColumnOrder)
             {
                 var cn = dgvDuplicates.Columns[columnOrderItem.ColumnIndex].Name;
                 if (cn.ToLower().StartsWith("col"))

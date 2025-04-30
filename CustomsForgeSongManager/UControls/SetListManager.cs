@@ -17,6 +17,7 @@ using DataGridViewTools;
 using CustomsForgeSongManager.Properties;
 using System.Reflection;
 using UserProfileLib;
+using CustomsForgeSongManager.DataManager;
 
 // cache.psarc may not be renamed
 // TODO: somebody please rewrite SetlistMaster code completely ...
@@ -50,15 +51,19 @@ namespace CustomsForgeSongManager.UControls
         public void PopulateSetlistManager()
         {
             SMLog.Log("Populating SetlistManager GUI ...");
-            DgvExtensions.DoubleBuffered(dgvSetlistMaster);
-            Globals.Settings.LoadSettingsFromFile(dgvSetlistMaster, true);
+
+            //DgvExtensions.DoubleBuffered(dgvSetlistMaster);
+            //Globals.Settings.LoadSettingsFromFile(dgvSetlistMaster, true);
+            SettingsManager.LoadOrInitializeDataGridViewSettings(ref dgvSetlistMaster);
 
             // theoretically this error condition should not exist
+            // => Correct, we shouldn't be checking for valid install directory WHILE we're trying to populate the SetlistManager
+            /*
             if (String.IsNullOrEmpty(AppSettings.Instance.RSInstalledDir) || !Directory.Exists(AppSettings.Instance.RSInstalledDir))
             {
                 MessageBox.Show(@"Please fix the Rocksmith installation directory!  " + Environment.NewLine + @"This can be changed in the 'Settings' tabmenu.", MESSAGE_CAPTION, MessageBoxButtons.OK, MessageBoxIcon.Stop);
                 return;
-            }
+            }*/
 
             // for testing
             // NOTE: changes to MultiSelect must come before data is bound to grid
